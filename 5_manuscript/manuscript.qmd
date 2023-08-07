@@ -1,5 +1,5 @@
 ---
-title: "Change in hemoglobin as a novel marker for incident iron deficiency in blood donors"
+title: "Assessing methods to adjust for assay differences across COVID-19 serological surveillance studies in Canada"
 execute: 
   echo: false
 format:
@@ -44,11 +44,13 @@ moment but it's being actively worked on. To install latest package version, use
 
 --->
 ```
-W. Alton Russell^1^, others
+Jiacheng Chen^1,2^, ..., W. Alton Russell^1,2^
 
 <br>
 
 ^1^School of Population and Global Health, McGill University, Montreal, Canada
+
+^2^COVID-19 Immunity Task Force
 
 <br>
 
