@@ -1,0 +1,86 @@
+---
+title: "2.0 AB Outpatient Lab Data Encryption (SHA-2)"
+author: J. Chen
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+# Load Paks
+library(dplyr)
+library(duawranglr)    # use this to encrypt the ids
+```
+
+```{r}
+## Import Dataset
+library(readxl)
+RFD4682_COVID<-read_excel("~/APL/RFD4682_COVID_Serology_Data_for release June 2023.xlsx", 
+    sheet = "RFD4682_Full_Data", col_types = c("text", 
+        "text", "text", "text", "text", 
+        "date", "text", "text", "date", "date", 
+        "text", "text", "numeric", "text", 
+        "text", "text", "text", "text", "date", 
+        "numeric", "text", "text", 
+        "date", "numeric", "numeric"))
+
+table(RFD4682_COVID$NAAT_STATUS, useNA = 'ifany')
+save(RFD4682_COVID, file = "~/APL/RFD4682.RData")
+
+## The IDs are not encrypted, need to do it by ourselves
+
+## Add missing value indicator for PERSON_ID and ULI_ID
+RFD4682_COVID$id_per_miss<-is.na(RFD4682_COVID$PERSON_ID)
+RFD4682_COVID$id_uli_miss<-is.na(RFD4682_COVID$ULI_ID)
+
+# Use deid_dua() from {duawranglr} package to do the encryption
+RFD4682_e <- deid_dua(RFD4682_COVID, 
+                      id_col = 'PERSON_ID',
+                      new_id_name = 'PERSON_IDe',
+                      write_crosswalk = TRUE, id_length = 12,
+                      crosswalk_filename='crosswalk_id_per.csv')
+
+RFD4682_e <- deid_dua(RFD4682_e, 
+                      id_col = 'ULI_ID',
+                      new_id_name = 'ULI_IDe',
+                      write_crosswalk = TRUE, id_length = 15)
+
+# SHA-2 algorithm also process missing values in those two ids
+# NAs in each id will have the same encrypted value, need to replace them with NA
+RFD4682_e$PERSON_IDe[RFD4682_e$id_per_miss==TRUE]<-NA
+RFD4682_e$ULI_IDe[RFD4682_e$id_uli_miss==TRUE]<-NA
+RFD4682_e<-select(RFD4682_e, !c(id_per_miss, id_uli_miss))
+
+## Take a look at the crosswalk file
+corsswalk_uli<-read.csv(file = '~/APL/id_crosswalk_id_uli.csv')
+rm(corsswalk_uli)
+# Alton is the only person who keeps the crosswalks
+
+## Save the Dataset
+save(RFD4682_e, file = "~/APL/RFD4682e.RData")
+```
+
+## Check the unique individual in the original dataset
+
+```{r}
+## ULI_ID: Unique Lifetime Identifier (ULI), numerical values of Alberta PHN.
+length(unique(RFD4682_e$ULI_IDe))     # Unique = 180821-1 (1 is NA)
+table(is.na(RFD4682_e$ULI_IDe))       # NA = 11298
+
+## PERSON_ID: assigned from the originating LIS
+length(unique(RFD4682_e$PERSON_IDe))     # Unique = 189864-1
+table(is.na(RFD4682_e$PERSON_IDe))       # NA = 2973
+```
+
+## Matt's Data
+```{r}
+
+```
+

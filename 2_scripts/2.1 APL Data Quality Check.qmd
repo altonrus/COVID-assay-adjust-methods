@@ -1,0 +1,350 @@
+---
+title: "2.1 APL Data Quality Check with additonal cleaning"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+## Load the APL data with encrypted ID variables
+```{r}
+load(file = "~/APL/RFD4682e.RData")
+```
+
+## Load paks
+```{r}
+library(dplyr)
+```
+
+
+```{r}
+## Create subset for those NAAT Positive Cases
+table(RFD4682_e$NAAT_STATUS, useNA = 'ifany')
+RFD4682_NAAT<-RFD4682_e[RFD4682_e$NAAT_STATUS %in% c('Positive'),]
+
+# Save the subset
+
+# Load Data file
+
+```
+
+## The distribution of time from NAAT to Sero-assay
+
+```{r}
+hist(RFD4682_e$DAYS_SINCE_NAAT[RFD4682_e$NAAT_STATUS=="Positive"], breaks = 18,
+     main="Time form NAAT to Sero-assay (Days)",
+     xlab = "Days")
+
+## The time variable is good to go
+```
+
+## Records are not patients, how many individual has been included?
+```{r}
+## ULI_ID: Unique Lifetime Identifier (ULI), numerical values of Alberta PHN.
+length(unique(RFD4682_e$ULI_IDe))     # Unique = 180821
+table(is.na(RFD4682_e$ULI_IDe))       # NA = 11298
+
+## PERSON_ID: assigned from the originating LIS
+length(unique(RFD4682_e$PERSON_IDe))     # Unique = 189864
+table(is.na(RFD4682_e$PERSON_IDe))       # NA = 2973
+
+## SERO_ID: Unique Specimen ID + Test month, unique APL dataset
+length(unique(RFD4682_e$SERO_ID)) # N=214,772
+table(is.na(RFD4682_e$SERO_ID))   # No missing
+
+## Checking duplicated records by SERO_ID
+tab_SERO_ID<-table(RFD4682_e$SERO_ID)
+View(tab_SERO_ID)
+
+str(tab_SERO_ID)
+tab_SERO_ID.dat<-as.data.frame(tab_SERO_ID)
+tab_SERO_ID.dat[tab_SERO_ID.dat$Freq==2,]
+```
+## Why unique PERSON_ID and ULI_ID are not matching with each other?
+```{r}
+## Check the discrepancies between those two
+
+## Freq tab for ULI_ID
+tab_ULI_IDe<-table(RFD4682_e$ULI_IDe)
+tab_ULI_IDe.dat<-as.data.frame(tab_ULI_IDe)
+colnames(tab_ULI_IDe.dat)<-c('ULI_IDe','Freq_ULI')
+
+# tab_ULI_ID.dat.2<-tab_ULI_ID.dat[tab_ULI_ID.dat$Freq>1,]
+
+## Freq tab for RERSON_ID
+tab_PERSON_IDe<-table(RFD4682_e$PERSON_IDe)
+tab_PERSON_IDe.dat<-as.data.frame(tab_PERSON_IDe)
+colnames(tab_PERSON_IDe.dat)<-c('PERSON_IDe','Freq_PER')
+
+## Add freq var to the subset
+RFD4682_e$order_ID<-1:214780
+RFD4682_3<-select(RFD4682_e, order_ID, SERO_ID, ULI_IDe, PERSON_IDe)
+RFD4682_3<-merge(RFD4682_3, tab_ULI_IDe.dat, by='ULI_IDe',
+      all.x = T, all.y = F)
+RFD4682_3<-merge(RFD4682_3, tab_PERSON_IDe.dat, by='PERSON_IDe',
+      all.x = T, all.y = F)
+
+## Find Discrepancies by compare the frequencies
+
+## NA is messy with logic, replace it with 0
+RFD4682_3$Freq_ULI[is.na(RFD4682_3$Freq_ULI)==T]<-0
+RFD4682_3$Freq_PER[is.na(RFD4682_3$Freq_PER)==T]<-0
+tab.idfreq<-table(RFD4682_3$Freq_ULI, RFD4682_3$Freq_PER, useNA = 'ifany')
+tab.idfreq
+dat.idfreq<-as.data.frame(tab.idfreq)
+
+# Scenario 0: Frequencies of ULI and Person_ID are both missing (equal too)
+RFD4682_3$ID_clean<-rep(NA, 214780)
+RFD4682_3$ID_clean[RFD4682_3$Freq_ULI==0 &
+                   RFD4682_3$Freq_PER==0  ]<-0
+
+# Scenario 1: Frequencies of ULI and Person_ID are equal
+length(unique(RFD4682_3$ULI_IDe[(RFD4682_3$Freq_ULI==RFD4682_3$Freq_PER) &
+                                 RFD4682_3$Freq_ULI>0                    &
+                                 RFD4682_3$Freq_PER>0])
+) # N=179,460 This is the majority of cases in the dataset, which is good
+# This number matches with the numbers from the confusion tab
+
+RFD4682_3$ID_clean[(RFD4682_3$Freq_ULI==RFD4682_3$Freq_PER) &
+                                 RFD4682_3$Freq_ULI>0       &
+                                 RFD4682_3$Freq_PER>0]<-1
+
+# Scenario 2: only ULI, Person_ID are missing
+# Number estimated using confusion tab: 107, 108 records
+RFD4682_3$ID_clean[RFD4682_3$Freq_ULI>0 &
+                   RFD4682_3$Freq_PER==0  ]<-2
+
+# Scenario 3, ULI missing but they have PERSON_ID
+# Number estimated using confusion tab: 7904, 8433 records
+RFD4682_3$ID_clean[RFD4682_3$Freq_ULI==0 &
+                   RFD4682_3$Freq_PER>0  ]<-3
+
+# Scenario 4, one PERSON_ID matches with multiple ULI_IDs
+# Number estimated using confusion tab: 6, 10 records
+RFD4682_3$ID_clean[RFD4682_3$Freq_ULI==1 &
+                   RFD4682_3$Freq_PER==2  ]<-4 # this would only fix 6 records
+
+# Fix the rest 4 manually
+RFD4682_3$ID_clean[RFD4682_3$PERSON_IDe=="9a4299b85800" &
+                   is.na(RFD4682_3$ULI_IDe)==TRUE]<-4
+RFD4682_3$ID_clean[RFD4682_3$PERSON_IDe=="aa6526b42bfe" &
+                   is.na(RFD4682_3$ULI_IDe)==TRUE]<-4
+RFD4682_3$ID_clean[RFD4682_3$PERSON_IDe=="e054534f4352" &
+                   is.na(RFD4682_3$ULI_IDe)==TRUE]<-4
+RFD4682_3$ID_clean[RFD4682_3$PERSON_IDe=="fcb0ca36fbb4" &
+                   is.na(RFD4682_3$ULI_IDe)==TRUE]<-4
+
+RFD4682_3$ULI_IDe[RFD4682_3$PERSON_IDe=="9a4299b85800" &
+                   is.na(RFD4682_3$ULI_IDe)==TRUE]<-"3c32a58470ee228"
+RFD4682_3$ULI_IDe[RFD4682_3$PERSON_IDe=="aa6526b42bfe" &
+                   is.na(RFD4682_3$ULI_IDe)==TRUE]<-"f21a83130a09b98"
+RFD4682_3$ULI_IDe[RFD4682_3$PERSON_IDe=="e054534f4352" &
+                   is.na(RFD4682_3$ULI_IDe)==TRUE]<-"c80b7fbde166521"
+RFD4682_3$ULI_IDe[RFD4682_3$PERSON_IDe=="fcb0ca36fbb4" &
+                   is.na(RFD4682_3$ULI_IDe)==TRUE]<-"08bc00a9a5e8720"
+
+# The rest are scenario 5
+# N records = 2775, number matches those on confusion cross-tab
+RFD4682_3$ID_clean[is.na(RFD4682_3$ID_clean)==TRUE]<-5
+
+# Rename the variable as "scenario"
+RFD4682_3<-rename(RFD4682_3, Scenario = ID_clean)
+table(RFD4682_3$Scenario, useNA = 'ifany')
+
+# Apply approperiate individual ids to each records, according to its scenario
+RFD4682_3$clean_IDe<-rep(NA, 214780)
+RFD4682_3$clean_IDe<-if_else(RFD4682_3$Scenario %in% c(3), RFD4682_3$PERSON_IDe, RFD4682_3$ULI_IDe)
+```
+ 
+## Scenario Examples Showcase
+```{r}
+# Example with each Scenarios
+RFD4682_3[RFD4682_3$Freq_ULI==6 & RFD4682_3$Freq_PER==5 ,]     # Scenario 5
+RFD4682_3[RFD4682_3$Freq_ULI==15 & RFD4682_3$Freq_PER==15 ,]   # Scenario 1
+RFD4682_3[RFD4682_3$Freq_ULI==2 & RFD4682_3$Freq_PER==0 ,]     # Scenario 2
+RFD4682_3[RFD4682_3$Freq_ULI==0 & RFD4682_3$Freq_PER==5 ,]     # Scenario 3
+RFD4682_3[RFD4682_3$Freq_ULI==1 & RFD4682_3$Freq_PER==2 ,]     # Scenario 4
+RFD4682_3[RFD4682_3$Freq_ULI==0 & RFD4682_3$Freq_PER==0 ,]     # Scenario 0
+```
+
+## Add clean_IDe and Scenario back to dataset (encrypted)
+```{r}
+RFD4682_e<-merge(RFD4682_e, select(RFD4682_3, order_ID, Scenario, clean_IDe),
+                      by = 'order_ID', all = TRUE)
+```
+
+
+#### ULI ID and PERSON_ID, in NAAT+ subset
+```{r}
+## ULI_ID: Unique Lifetime Identifier (ULI), numerical values of Alberta PHN.
+length(unique(RFD4682_NAAT$ULI_ID))     # N = 5933
+table(is.na(RFD4682_NAAT$ULI_ID))       # NA = 0
+
+## PERSON_ID: assigned from the originating LIS
+length(unique(RFD4682_NAAT$PERSON_ID)) # N = 5940
+table(is.na(RFD4682_NAAT$PERSON_ID))   # NA = 0
+
+## Check the discrepancies between those two
+tab_ULI_ID<-table(RFD4682_NAAT$ULI_ID)
+tab_ULI_ID.dat<-as.data.frame(tab_ULI_ID)
+colnames(tab_ULI_ID.dat)<-c('ULI_ID','Freq_ULI')
+tab_ULI_ID.dat.2<-tab_ULI_ID.dat[tab_ULI_ID.dat$Freq>1,]
+
+tab_PERSON_ID<-table(RFD4682_NAAT$PERSON_ID)
+tab_PERSON_ID.dat<-as.data.frame(tab_PERSON_ID)
+colnames(tab_PERSON_ID.dat)<-c('PERSON_ID','Freq_PER')
+tab_PERSON_ID.dat.2<-tab_PERSON_ID.dat[tab_PERSON_ID.dat$Freq>1,]
+
+## Add freq var to 
+RFD4682_NAAT_3<-select(RFD4682_NAAT, SERO_ID, ULI_ID, PERSON_ID)
+RFD4682_NAAT_3<-merge(RFD4682_NAAT_3, tab_ULI_ID.dat.2, by='ULI_ID',
+      all.x = T, all.y = F)
+RFD4682_NAAT_3<-merge(RFD4682_NAAT_3, tab_PERSON_ID.dat.2, by='PERSON_ID',
+      all.x = T, all.y = F)
+
+
+RFD4682_NAAT_4<-RFD4682_NAAT_3[is.na(RFD4682_NAAT_3$Freq_ULI)==F |
+               is.na(RFD4682_NAAT_3$Freq_PER)==F,]
+
+RFD4682_NAAT_4$freq_minus<-RFD4682_NAAT_4$Freq_ULI-RFD4682_NAAT_4$Freq_PER
+
+print(RFD4682_NAAT_4[RFD4682_NAAT_4$freq_minus>0 |
+               is.na(RFD4682_NAAT_4$freq_minus)==TRUE,])
+
+## Save the dataset
+save(RFD4682_e, file = '~/APL/RFD4682e.RData')
+
+## Conclusion:
+## Use ULI_ID, in NAAT+ subset, seven people have 2 diff PERSON_IDs
+## Unique ULI_ID: N=5940
+```
+
+```{r}
+length(unique(RFD4682_e$clean_IDe))
+table(is.na(unique(RFD4682_e$clean_IDe)), useNA = 'ifany')
+
+# Unique Individual in the dataset: 188,722 (beware of missing values)
+```
+
+## Check N=2865 cases with missing in both ULI and Person_ID
+```{r}
+RFD4682_e[RFD4682_e$Scenario==0,]
+## Surprisingly, most of the records in this group has some useful variables,
+## such as: age, gender and Anti_RBD test results
+
+# Age
+table(RFD4682_e$AGE_AT_COLLECTION[RFD4682_e$Scenario==0], useNA = 'ifany') # 0.03%
+# Gender
+table(RFD4682_e$GENDER[RFD4682_e$Scenario==0], useNA = 'ifany') # 0.03%
+# N-Ig
+table(RFD4682_e[RFD4682_e$Scenario==0,]$`N-IgG_RESULT`, useNA = 'ifany') # Can't show all
+table(is.na(RFD4682_e[RFD4682_e$Scenario==0,]$`N-IgG_RESULT`), useNA = 'ifany') # 92.95%
+table(is.na(RFD4682_e$`N-IgG_RESULT`), useNA = 'ifany') # 92.95%
+
+# Ig Anti-RBD
+table(is.na(RFD4682_e[RFD4682_e$Scenario==0,]$`RBD-IgGII_RESULT`), useNA = 'ifany')
+# no missing, good
+
+# FSA
+table(is.na(RFD4682_e[RFD4682_e$Scenario==0,]$PAT_FSA), useNA = 'ifany') # 9.49%
+
+# Vaccination
+table(is.na(RFD4682_e[RFD4682_e$Scenario==0,]$VACCINATION_STATUS), useNA = 'ifany')
+# No miss, good
+table(RFD4682_e[RFD4682_e$Scenario==0,]$VACCINATION_STATUS, useNA = 'ifany')
+table(RFD4682_e$VACCINATION_STATUS, useNA = 'ifany')
+
+# NAAT Status
+table(is.na(RFD4682_e[RFD4682_e$Scenario==0,]$NAAT_STATUS), useNA = 'ifany') # 92.98%
+table(is.na(RFD4682_e$NAAT_STATUS), useNA = 'ifany')
+
+id_temp<-RFD4682_e$SERO_ID[RFD4682_e$VACCINATION_STATUS %in% c("Pre-Immunization")]
+View(id_temp)
+max(id_temp, na.rm = T) # 2020 Nov
+min(id_temp, na.rm = T)
+
+# Conclusion: The data quality of this part is good, but we cannot use those in our project
+```
+
+## The Whole APL dataset
+```{r}
+# The NAAT status variable
+table(RFD4682_e$NAAT_STATUS, useNA = 'ifany')
+
+# The Vaccination Status Variable
+table(RFD4682_e$VACCINATION_STATUS, useNA = 'ifany')
+
+# Cross-tab of those two
+table(RFD4682_e$NAAT_STATUS, RFD4682_e$VACCINATION_STATUS, useNA = 'ifany')
+```
+## Categorize the time since last NAAT test
+```{r}
+hist(RFD4682_e$DAYS_SINCE_NAAT, breaks=20)
+
+# Create an indicator
+RFD4682_e$DAYS_NAAT_cat<-rep(NA, 214780)
+RFD4682_e$DAYS_NAAT_cat[RFD4682_e$DAYS_SINCE_NAAT>=0 &
+                        RFD4682_e$DAYS_SINCE_NAAT<=90 ]<-1  # <3 months
+RFD4682_e$DAYS_NAAT_cat[RFD4682_e$DAYS_SINCE_NAAT>90 &
+                        RFD4682_e$DAYS_SINCE_NAAT<=180 ]<-2  # 4-6 months
+RFD4682_e$DAYS_NAAT_cat[RFD4682_e$DAYS_SINCE_NAAT>180 &
+                        RFD4682_e$DAYS_SINCE_NAAT<=270 ]<-3  # 4-6 months
+RFD4682_e$DAYS_NAAT_cat[RFD4682_e$DAYS_SINCE_NAAT>270 &
+                        is.na(RFD4682_e$DAYS_SINCE_NAAT)==F ]<-4  # 4-6 months
+table(RFD4682_e$DAYS_NAAT_cat, useNA = 'ifany')
+
+# Cross-tabulation between NAAT and NAAT_DAYS categories
+# Anti-N groups
+table(RFD4682_e$DAYS_NAAT_cat[is.na(RFD4682_e$`N-IgG_RESULT`)==F], 
+      RFD4682_e$NAAT_STATUS[is.na(RFD4682_e$`N-IgG_RESULT`)==F], useNA = 'ifany')
+
+# Anti-RBD groups
+table(RFD4682_e$DAYS_NAAT_cat[is.na(RFD4682_e$`RBD-IgGII_RESULT`)==F &
+                              RFD4682_e$VACCINATION_STATUS %in% c('Not Immunized')], 
+      RFD4682_e$NAAT_STATUS[is.na(RFD4682_e$`RBD-IgGII_RESULT`)==F &
+                              RFD4682_e$VACCINATION_STATUS %in% c('Not Immunized')], useNA = 'ifany')
+```
+
+
+
+
+
+## Vaccination Status
+```{r}
+table(RFD4682_NAAT$VACCINATION_STATUS, useNA = 'ifany')
+hist(RFD4682_NAAT$DAYS_SINCE_IMM)
+
+# Create day gap
+
+## NAs in NAAT Days var
+table(is.na(RFD4682_NAAT$DAYS_SINCE_NAAT)) # Great, no NAs
+
+## NAs in Vaccination Days var
+table(is.na(RFD4682_NAAT$DAYS_SINCE_IMM)) # Only 911 missing, not match with Vacc Status
+
+## Calculate the Gap
+RFD4682_NAAT$DAYS_Gap<-rep(NA,6165)
+RFD4682_NAAT$DAYS_Gap<-RFD4682_NAAT$DAYS_SINCE_NAAT - RFD4682_NAAT$DAYS_SINCE_IMM
+table(is.na(RFD4682_NAAT$DAYS_Gap)) #911 Missing, 0 vaccinated at the same day of sample collection
+hist(RFD4682_NAAT$DAYS_Gap, 
+     main = 'Gap between NAAT and Vaccination',
+     xlab = 'Days')
+
+## Create the indicator
+RFD4682_NAAT$Vacc_status<-rep(NA, 6165)
+RFD4682_NAAT$Vacc_status[RFD4682_NAAT$VACCINATION_STATUS %in% c("Not Immunized")]<-1
+RFD4682_NAAT$Vacc_status[RFD4682_NAAT$DAYS_Gap>=0 & is.na(RFD4682_NAAT$DAYS_Gap)==F]<-2
+RFD4682_NAAT$Vacc_status[RFD4682_NAAT$DAYS_Gap<0 & is.na(RFD4682_NAAT$DAYS_Gap)==F]<-3
+table(RFD4682_NAAT$Vacc_status, useNA = 'ifany')
+```
+
+
+
+
+
