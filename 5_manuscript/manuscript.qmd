@@ -98,11 +98,37 @@ Citation [@Langham2018a]. See @fig-sample, @cor-sample, @thm-sample, and @lem-sa
 
 {{< pagebreak >}}
 
+Two types of antibodies to be detected by assays: Anti-S and Anti-N:
+
+anti-S (humoral response to infection or vaccination) and anti-N (marker of natural infection)
+
+Waning of immunity against SARS-COV-2 after infection and immunization, indicated by decreasing blood Ab level overtime.
+
+\[insert the figure of declining Ab with re-activation of immunization\]
+
 # Methods
+
+**Notes**: Unlike the DBS vs VBS manuscript, the methods section of this paper is mostly [unfinished]{.underline}. This section only shows the plan and the flow chart of the project in general, while the details of it needs constantly updating and polishing overtime, as the project goes. The potential obstacles were listed below:
+
+-   AB Antenatal Data has not arrived yet.
+
+-   In AB Outpatient Lab Data, they changed the assay (Diasorin S --\> Abbott S) in the midway, this would affect the validity of analysis based on quantitative test results, as the results from different assay are not directly comparable.
 
 ## Dataset
 
-A
+To estimate the seroprevalence and attack rate in Alberta, we used data from the Alberta Outpatient Lab (APL), Alberta Antenatal Testing, and Canadian Blood Services datasets. CBS has tested \>450,000 blood donations for both SARS-CoV-2 anti-S and anti-N levels since March 2020. Data include donor's sex, self-reported race/ethnicity, and age. From their address, neighborhood material/social deprivation and urban/rural indicator have been derived. This analysis uses donations tested in Alberta (N=XX) only.
+
+Alberta Health Services (AHS) tested \>160,000 Albertan outpatient labs (APL) and \>6,000 antenatal blood draws for anti-N and anti-S antibodies from June 2020 until December 2021. These data contain all the same variables as the blood donors except for race/ethnicity. Besides of serology test results and demographic data, CBS has linked the administrative data for the Alberta cohort (**is the link finished?**), which provided additional on their hospitalizations, clinic visits, diagnoses, COVID vaccinations, and long-term disability claims. Similarly, AHS has completed a similar linkage in the Albertan outpatient lab (APL) data and Alberta Antenatal Blood Test data. See Table.X below for more details.
+
+## **Seroprevalence and attack rate** 
+
+To bridge the gap between test positivity and population-level seroprevalence, we will employ the Rogen-Gladen (RG) equation and Bayesian models. Following seroprevalence estimation, we will further estimate the attack rate while adjusting for waning immunity. These estimations will help to answer what proportion of the Alberta outpatient population that has been infected by SARS-CoV-2.
+
+We presented both seroprevalence and attack rate in a unified graph (**Fig**. X), displaying changes over time on a four-month scale.
+
+## **Proportion sufficiently protected:** 
+
+In evaluating whether participants possess immunity levels sufficient to shield them from future infections, from either vaccination or infection, we will apply an age- and sex-adjusted threshold of protection to the quantitative Anti-S assay results. We will also present the fluctuation of the proportion sufficiently protected over time in another figure, and we will conduct sensitivity analyses in which we compare alternative threshold levels. The details of the project flowchart is presented in the **Fig**. Y below.
 
 <br>
 
