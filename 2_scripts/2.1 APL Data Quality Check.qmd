@@ -428,74 +428,24 @@ hist(RFD4682_e$N, breaks=25)
 # Results
 table(RFD4682_e$`N-IgG_INTERP`, useNA = 'ifany')
 ```
-#### Calculate positivity directly
 
+#### Add a year-month var
 ```{r}
-# Create month var
-RFD4682_e$Col_Date<-RFD4682_e$COLLECTION_DATE %>%
-  as.Date(., tz="UTC") # a short time var, date only
-
-library(lubridate)
-library(zoo)
-
-# Only keep the month, remove the data
-RFD4682_e$mois <- month(RFD4682_e$Col_Date)
-RFD4682_e$annee <- year(RFD4682_e$Col_Date)
-RFD4682_e$Col_Month<-paste(RFD4682_e$annee, RFD4682_e$mois, 
-                           sep = "-")
+# only keep the month, remove the data
+RFD4682_e$Col_Month<-format(as.Date(RFD4682_e$COLLECTION_DATE), "%Y-%m")
 table(RFD4682_e$Col_Month, useNA='ifany')
+
 # as char variable if needed for calculation, use as.yearmon() from {zoo} or just use the Col_Date var
 ```
 
+
+#### Save a cleaned ver of RFD4682e
 ```{r}
-# Calculate positivity for each month
-tb1<-RFD4682_e[is.na(RFD4682_e$`N-IgG_RESULT`)==F,] %>%
-  group_by(Col_Month) %>%
-  summarise(n = n())
-
-tb2<-RFD4682_e[RFD4682_e$`N-IgG_INTERP`=="Positive",] %>%
-  group_by(Col_Month) %>%
-  summarise(n.pos = n())
-
-tb1<-merge(tb1, tb2, by = "Col_Month", all.x = T, all.y = F)
-tb1$prop.n<-tb1$n.pos/tb1$n
-tb1$Col_Month<-as.yearmon(tb1$Col_Month)
-tb1<-tb1[order(tb1$Col_Month),]
-
-# Add R-G adjusted prevalances
-# Sen=0.881, Spec = 0.947
-# Source:
-tb1$prop.n_RG<- (tb1$prop.n+0.881-1)/(0.881+0.947-1)
-
-# remove NAs
-tb1<-tb1[!is.na(tb1$Col_Month),]
-
-tb1 %>%
-  with(plot(y=.$prop.n, x = .$Col_Month, type="b",
-            ylab="positivity", xlab="Month",col="blue")
-       )
-```
-
-#### Apply ggplot, plot two together
-```{r}
-tb1_melt<-melt(select(tb1, Col_Month, prop.n, prop.n_RG), id.vars = "Col_Month")
-
-tb1_melt %>%
-  ggplot(aes(x=Col_Month, y=value, colour=variable)) +
-  geom_point(aes(colour=variable)) +
-  geom_line(aes(colour=variable))  +
-  theme_bw()
+save(RFD4682_e, file = "../1_data/private/RFD4682e.RData")
 ```
 
 
 
 
-```{r}
 
-plot(x=temp$Time ,y=temp$Positivity, type = 'b', 
-     col="blue", xlab="Time: 2022", ylab="Test Positivity",
-     main="Anti-N Assay Positivity in Omicron Wave, using APL Data")
-plot(x=temp$Time ,y=temp$Positivity_RG, 
-     type = 'b', col="red")
-```
 

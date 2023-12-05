@@ -1,0 +1,181 @@
+---
+title: "2.2 Rogen-Gladen Adjustment"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+## Load dataset
+```{r}
+# The CBS Ab subset data
+load(file = "../1_data/private/CBS_Ab.RData")
+load(file = "../1_data/private/RFD4682e.RData")
+```
+
+## Load necc paks
+```{r}
+library(dplyr)         # Data management
+library(reshape2)      # for melt() function
+library(ggplot)        # ggplot
+library(zoo)           # year-month format
+```
+# ============= Part I. The Changing of Anti-N Pos APL ===============#
+
+#### Calculate positivity directly
+
+```{r}
+# Calculate positivity for each month
+tb1<-RFD4682_e[is.na(RFD4682_e$`N-IgG_RESULT`)==F,] %>%
+  group_by(Col_Month) %>%
+  summarise(n = n())
+
+tb2<-RFD4682_e[RFD4682_e$`N-IgG_INTERP`=="Positive",] %>%
+  group_by(Col_Month) %>%
+  summarise(n.pos = n())
+
+tb1<-merge(tb1, tb2, by = "Col_Month", all.x = T, all.y = F)
+tb1$prop.n<-tb1$n.pos/tb1$n
+tb1$Col_Month<-as.yearmon(tb1$Col_Month)
+tb1<-tb1[order(tb1$Col_Month),]
+
+# Add R-G adjusted prevalances
+# Sen=0.844, Spec = 1.0
+# Source: 
+tb1$prop.n_RG<- (tb1$prop.n+1-1)/(1+0.844-1)
+
+# remove NAs
+tb1<-tb1[!is.na(tb1$Col_Month),]
+
+tb1 %>%
+  with(plot(y=.$prop.n, x = .$Col_Month, type="b",
+            ylab="positivity", xlab="Month",col="blue")
+       )
+```
+
+#### Apply ggplot, plot two together
+```{r}
+APL_melt<-melt(select(tb1, Col_Month, prop.n, prop.n_RG), id.vars = "Col_Month")
+
+APL_melt %>%
+  ggplot(aes(x=Col_Month, y=value, colour=variable)) +
+  geom_point(aes(colour=variable)) +
+  geom_line(aes(colour=variable))  +
+  theme_bw()
+```
+
+# ============= Part II. The Changing of Anti-N Pos Overtime ===============#
+
+#### Anti-N in CBS data (Roche)
+```{r}
+CBS_Ab %>%
+  with(summary(roche_n))
+
+hist(log10(CBS_Ab$roche_n))
+
+table(CBS_Ab$interp_roche_n, useNA = 'ifany')
+# 54713/(124008-1) = 44.12% much higher than APL
+
+# Negative Cases: roche_n<1, clearly 1.0 is the COI, as it published by Roche
+CBS_Ab %>%
+  .[.$interp_roche_n==0, ] %>%
+  with(summary(roche_n))
+
+# Positive Cases: roche_n>=1
+CBS_Ab %>%
+  .[.$interp_roche_n==1, ] %>%
+  with(summary(roche_n))
+```
+
+```{r}
+# Check the data collection time
+
+# Abbott only - not exist
+CBS_Ab %>%
+  .[!is.na(.$abbott_n) & is.na(.$roche_n), ] %>%
+  with(summary(sampledate))
+
+# Abbott & Roche
+CBS_Ab %>%
+  .[!is.na(.$abbott_n) & !is.na(.$roche_n), ] %>%
+  with(summary(sampledate))
+
+# Roche only
+CBS_Ab %>%
+  .[is.na(.$abbott_n) & !is.na(.$roche_n), ] %>%
+  with(summary(sampledate))
+```
+## Making result table for ggplot
+```{r}
+# prepare melt data
+tb1<-CBS_Ab%>%
+  group_by(month_year) %>%
+  summarise(n = n(), )
+
+tb2<-CBS_Ab[CBS_Ab$interp_roche_n==1,] %>%
+  group_by(month_year) %>%
+  summarise(n.pos = n(), )
+
+tb1<-merge(tb1, tb2, by = "month_year", all.x = T, all.y = F)
+tb1$prop.n<-tb1$n.pos/tb1$n
+tb1$month_year<-as.yearmon(tb1$month_year)
+tb1<-tb1[order(tb1$month_year),]
+
+# Add R-G adjusted prevalances
+# Sen=99.8%, Spec = 99.5%
+# Source:https://www.rochecanada.com/media/covid-19--an-additional-contribution-to-the-testing-landscape-in
+tb1$prop.n_RG_h<- (tb1$prop.n+0.995-1)/(0.995+0.998-1)
+
+# Third-party sens & spec
+# Sen=90.6, spec = 100 
+# Source: https://meridian.allenpress.com/aplm/article/145/1/32/443501/Comparative-Clinical-Evaluation-of-the-Roche
+tb1$prop.n_RG_l<- (tb1$prop.n+1-1)/(1+0.906-1)
+```
+
+#### Apply ggplot, plot two together
+```{r}
+CBS_melt<-melt(select(tb1, month_year, prop.n, prop.n_RG_h, prop.n_RG_l), id.vars = "month_year")
+
+CBS_melt %>%
+  ggplot(aes(x=month_year, y=value, colour=variable)) +
+  geom_point(aes(colour=variable)) +
+  geom_line(aes(colour=variable))  +
+  geom_hline(yintercept=0, colour='red', linetype=2) +
+  theme_bw() + 
+  scale_fill_discrete(name = "", labels = c("Unadjusted", "RG_adjusted: Roche", "RG_adjusted: Other study")) +
+  theme(legend.title = element_blank())
+```
+
+#### Plot CBS and APL all together
+```{r}
+# Create a merged data
+APL_melt$data<-rep("APL", length(APL_melt$Col_Month))
+colnames(APL_melt)<-c("month_year", "variable", "value" , "data")
+
+CBS_melt$data<-rep("CBS", length(CBS_melt$month_year))
+# keep only RG_I (sens=0.9)
+CBS_melt1<-CBS_melt %>% .[.$variable!="prop.n_RG_h",]
+CBS_melt1$variable<-as.character(CBS_melt1$variable)
+CBS_melt1$variable[CBS_melt1$variable!="prop.n"]<-'prop.n_RG'
+
+APLBS<-rbind.data.frame(APL_melt, CBS_melt1)
+
+# Do ggplot
+p01<-APLBS %>%
+  ggplot(aes(x=month_year, y=value, colour=variable)) +
+  geom_point(aes(colour=variable, shape=data)) +
+  geom_line(aes(colour=variable, linetype=data))  +
+  geom_hline(yintercept=0, colour='red', linetype=2) +
+  xlab("Time") + ylab("Estimated Prevalence") +
+  theme_bw()
+
+p01$labels$colour<-"Adjustment"
+
+p01
+```
+
+## What's the reason 
