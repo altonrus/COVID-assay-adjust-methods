@@ -178,4 +178,13 @@ p01$labels$colour<-"Adjustment"
 p01
 ```
 
-## What's the reason 
+## What's the reason of the gap? 
+```{r}
+# The gap between adjusted and unadjused - Rogen-Gladen equation is the cause
+# In our case, the sensitivity is where most variance come from. Specificity is good over time, and we can used the number published by the manufacturer (Roche & Abbott). Since sens is imperfect (0.8--1.0) and specificity is mostly 100% trustworthy (~1.0), the R-G equation and be simplified as:
+
+#     True Prevalence = Observed Test Positivity/sens
+# According to the equation above, the worse the sens (smaller in value), the larger the gap between the adjusted (blue) and unadjusted (red). The gap is larger among unadjusted lines (red).
+
+# Between data (APL, CBS, CANPATH) diff is not the major focus of this study, Yuan's paper will focus on those. For this paper, the major focus should be the difference between adjusting methods
+```
