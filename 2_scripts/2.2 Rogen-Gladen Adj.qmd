@@ -21,7 +21,7 @@ load(file = "../1_data/private/RFD4682e.RData")
 ```{r}
 library(dplyr)         # Data management
 library(reshape2)      # for melt() function
-library(ggplot)        # ggplot
+library(ggplot2)        # ggplot
 library(zoo)           # year-month format
 ```
 # ============= Part I. The Changing of Anti-N Pos APL ===============#
@@ -188,3 +188,169 @@ p01
 
 # Between data (APL, CBS, CANPATH) diff is not the major focus of this study, Yuan's paper will focus on those. For this paper, the major focus should be the difference between adjusting methods
 ```
+
+
+##==================== Part III. Anti-S Positivity Overtime ================##
+
+#### This time we will use anti-S only from the CBS data, since among-data diff is not the major focus of this project
+
+```{r}
+# Roche_s: like other Roche assay, COI = 0.4, those < 0.4 = negative and recorded as 0.4
+
+# Histogram 
+hist(CBS_Ab$roche_s[CBS_Ab$roche_s>0.4]) # extreme values
+summary(CBS_Ab$roche_s) # This time they have 10,0000 as max, much larger than CLSA's 2500
+
+# Histogram log-transformed
+hist(CBS_Ab$log_roche_s[CBS_Ab$roche_s>0.4]) # Aman did log_e transform
+summary(CBS_Ab$log_roche_s)
+
+# Binary
+table(CBS_Ab$interp_roche_s, useNA = 'ifany')
+# Majority (87.50%) were test positive
+```
+#### Calculate Anti-S Positivity
+```{r}
+# prepare melt data
+tb1<-CBS_Ab%>%
+  group_by(month_year) %>%
+  summarise(n = n(), )
+
+tb2<-CBS_Ab[CBS_Ab$interp_roche_s==1,] %>%
+  group_by(month_year) %>%
+  summarise(s.pos = n(), )
+
+tb1<-merge(tb1, tb2, by = "month_year", all.x = T, all.y = F)
+tb1$prop.s<-tb1$s.pos/tb1$n
+tb1$month_year<-as.yearmon(tb1$month_year)
+tb1<-tb1[order(tb1$month_year),]
+
+# Third-party sens & spec
+# Sen=97.95, spec = 99.95 
+# Source:https://www.sciencedirect.com/science/article/pii/S016609342100210X
+tb1$prop.s_RG_l<- (tb1$prop.s+1-0.9995)/(1+0.9795-0.9995)
+
+CBS_melt2<-melt(select(tb1, month_year, prop.s, prop.s_RG_l), id.vars = "month_year")
+
+p02<-CBS_melt2 %>%
+  ggplot(aes(x=month_year, y=value, colour=variable)) +
+  geom_point(aes(colour=variable)) +
+  geom_line(aes(colour=variable))  +
+  geom_hline(yintercept=0, colour='red', linetype=2) +
+  xlab("Time") + ylab("Estimated Prevalence") +
+  theme_bw()
+
+p02$labels$colour<-"Adjustment"
+p02
+```
+#### Add additional COI 0.8 and 15
+
+```{r}
+CBS_Ab$interp_roche_s0.8<-if_else(CBS_Ab$roche_s>0.8, 1, 0)
+
+# elevating COI from 0.4 to 0.8 only increase N(-) by 2
+
+CBS_Ab$interp_roche_s15<-if_else(CBS_Ab$roche_s>15, 1, 0)
+table(CBS_Ab$interp_roche_s15, useNA = 'ifany')
+
+# elevating COI from 0.4 to 15 increase N(-) by 2000
+```
+#### Plot 03:  0.4 and 15 COI together in one single plot
+```{r}
+# Creating the N_prop data
+tb1<-CBS_Ab%>%
+  group_by(month_year) %>%
+  summarise(n = n(), )
+
+tb2<-CBS_Ab[CBS_Ab$interp_roche_s==1,] %>%
+  group_by(month_year) %>%
+  summarise(s.pos = n(), )
+
+tb3<-CBS_Ab[CBS_Ab$interp_roche_s15==1,] %>%
+  group_by(month_year) %>%
+  summarise(s.pos15 = n(), )
+
+tb1<-merge(tb1, tb2, by = "month_year", all.x = T, all.y = F)
+tb1<-merge(tb1, tb3, by = "month_year", all.x = T, all.y = F)
+
+tb1$prop.s<-tb1$s.pos/tb1$n
+tb1$prop.s15<-tb1$s.pos15/tb1$n
+tb1$month_year<-as.yearmon(tb1$month_year)
+tb1<-tb1[order(tb1$month_year),]
+```
+
+```{r}
+# Melt the data
+CBS_melt3<-melt(select(tb1, month_year, prop.s, prop.s15), id.vars = "month_year")
+
+p03<-CBS_melt3 %>%
+  ggplot(aes(x=month_year, y=value, colour=variable)) +
+  geom_point(aes(colour=variable)) +
+  geom_line(aes(colour=variable))  +
+  geom_hline(yintercept=0, colour='red', linetype=2) +
+  xlab("Time") + ylab("Estimated Prevalence") +
+  theme_bw()
+
+p03$labels$colour<-"COI"
+p03
+```
+#### Add RG-adjustment to the plot, using the sens and spec related to detection of virus neutrolization, rather than detection of presence of Antibodies.
+```{r}
+# N and proportions
+tb1<-CBS_Ab%>%
+  group_by(month_year) %>%
+  summarise(n = n(), )
+
+tb2<-CBS_Ab[CBS_Ab$interp_roche_s0.8==1,] %>%
+  group_by(month_year) %>%
+  summarise(s.pos0.8 = n(), )
+
+tb3<-CBS_Ab[CBS_Ab$interp_roche_s15==1,] %>%
+  group_by(month_year) %>%
+  summarise(s.pos15 = n(), )
+
+tb1<-merge(tb1, tb2, by = "month_year", all.x = T, all.y = F)
+tb1<-merge(tb1, tb3, by = "month_year", all.x = T, all.y = F)
+
+tb1$prop.s0.8<-tb1$s.pos0.8/tb1$n
+tb1$prop.s15<-tb1$s.pos15/tb1$n
+tb1$month_year<-as.yearmon(tb1$month_year)
+tb1<-tb1[order(tb1$month_year),]
+```
+
+```{r}
+# Add R-G adjusted props
+# Source: https://diagnostics.roche.com/global/en/products/params/elecsys-anti-sars-cov-2-s.html
+# Sample size is small, find a larger one?
+
+tb1$prop.s0.8_RG<- (tb1$prop.s0.8+0.875-1)/(0.875+0.994-1)
+tb1$prop.s15_RG<- (tb1$prop.s15+1-1)/(1+0.925-1)
+
+# melt the data
+CBS_melt4<-melt(select(tb1, month_year, prop.s0.8, prop.s15,
+                       prop.s0.8_RG, prop.s15_RG), id.vars = "month_year")
+CBS_melt4$adj[CBS_melt4$variable %in% c("prop.s0.8", "prop.s15")]<-"no adjustment"
+CBS_melt4$adj[CBS_melt4$variable %in% c("prop.s0.8_RG", "prop.s15_RG")]<-"RG adjusted"
+table(CBS_melt4$variable, CBS_melt4$adj)
+
+CBS_melt4$COI[CBS_melt4$variable %in% c("prop.s0.8", "prop.s0.8_RG")]<-"0.8"
+CBS_melt4$COI[CBS_melt4$variable %in% c("prop.s15", "prop.s15_RG")]<-"15"
+table(CBS_melt4$variable, CBS_melt4$COI)
+```
+```{r}
+## ggplot using melted data
+p04<-CBS_melt4 %>%
+  ggplot(aes(x=month_year, y=value, colour=adj)) +
+  geom_point(aes(colour=adj, shape=COI)) +
+  geom_line(aes(colour=adj, linetype=COI))  +
+  geom_hline(yintercept=0, colour='red', linetype=2) +
+  xlab("Time") + ylab("Estimated Prevalence") +
+  theme_bw()
+
+p04$labels$colour<-"Adjustment"
+
+p04
+
+# plot COI = 0.8/15 seperately
+```
+
