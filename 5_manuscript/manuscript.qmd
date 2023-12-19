@@ -77,6 +77,7 @@ theme_set(theme_bw())
 ```
 
 ```{r}
+# Load a sample dataset
 df_samp <- read_excel("../1_data/tables.xlsx", sheet = "sample")
 ```
 
@@ -116,15 +117,17 @@ Seropravalence and attack rate, why we need to employ RG equation or Bayesian mo
 
 **Notes**: Unlike the DBS vs VBS manuscript, the methods section of this project is mostly [unfinished]{.underline}. This section only shows the plan and the flow chart of the project in general, while the details of it needs constantly updating and polishing overtime, as the project goes. The potential obstacles were listed below:
 
--   AB Antenatal Data has not arrived yet.
+-   APL assay data before the Omicron wave was mostly missing, Carmen said they have already approved the data access but the data is still on its way.
 
--   In AB Outpatient Lab Data, they changed the assay (Diasorin S --\> Abbott S) in the midway, this would affect the validity of analysis based on quantitative test results, as the results from different assay are not directly comparable.
+-   In AB Outpatient Lab Data, they changed the assay (Diasorin S --\> Abbott S) in the midway, this would affect the validity of analysis based on quantitative test results, as the results from different assay are not directly comparable. Hopefully this can be clarified in the updated version of the dataset.
 
 ## Dataset
 
-To estimate the SARS-CoV-2 seroprevalence and attack rate in Alberta, we used data from the Alberta Outpatient Lab (APL), Alberta Antenatal Testing, and Canadian Blood Services (CBS) datasets. CBS has tested \>450,000 blood donations for both SARS-CoV-2 anti-S and anti-N levels since March 2020. Data include donor's sex, self-reported race/ethnicity, and age. From their address, neighborhood material/social deprivation and urban/rural indicator have been derived. This analysis uses donations tested in Alberta (N=XX) only.
+To estimate the SARS-CoV-2 seroprevalence and attack rate in Alberta, we used data from the Alberta Outpatient Lab (APL), Canadian Blood Services (CBS) and Canadian Partnership for Tomorrow's Health (CANPATH). Alberta Health Services (AHS) tested \>160,000 APL blood draws for SARS-CoV-2 anti-N and anti-S antibodies from June 2020 until December 2021. CBS has tested \>450,000 blood donations for both antibodies levels since March 2020. CANPATH has provided data with sample size \> XX. Besides of assay results, all three datasets include demographic variables such as donor's sex, self-reported race/ethnicity, and age. From their address, neighborhood material/social deprivation and urban/rural indicator have been derived.
 
-Alberta Health Services (AHS) tested \>160,000 Albertan outpatient labs (APL) and \>6,000 antenatal blood draws for anti-N and anti-S antibodies from June 2020 until December 2021. These data contain all the same variables as the blood donors except for race/ethnicity. Besides of serology test results and demographic data, CBS has linked the administrative data for the Alberta cohort (**is the linkage finished?**), which provided additional information on their hospitalizations, clinic visits, diagnoses, COVID vaccinations, and long-term disability claims. Similarly, AHS has completed a linkage in the Albertan outpatient lab (APL) data and Alberta Antenatal Blood Test data. We did not conduct analysis using a merged data, but instead, we conducted analysis separately for each data and presented the results in a unified graph (**Fig**. Y). **Table.X** below sumarrized the differences among three data utilized in the study. For more detail, see **Table. Z** in the result section.
+Besides of serology test results and demographic data, CBS has linked the administrative data for the Alberta cohort, which provided additional information on their hospitalizations, clinic visits, diagnoses, COVID vaccinations, and long-term disability claims. Similarly, AHS and CANPATH have completed linkages and included additional vaccination history.
+
+We did not conduct analysis using a merged data, but instead, we conducted analysis separately for each data and presented the results in a unified graph (**Fig**. Y). **Table.X** below summarized the differences among three data utilized in the study. For more detail, see **Table. Z** in the result section.
 
 **Table.X** Summary of difference among serosurveillance datasets from CBS and AHS
 
@@ -132,25 +135,15 @@ Alberta Health Services (AHS) tested \>160,000 Albertan outpatient labs (APL) an
 
 ## **Seroprevalence and attack rate**
 
-To evaluate the severity of Covid-19 pandemic overtime in Alberta province, first we calculated the anti-N assay test positivity. Then, to bridge the gap between test positivity and population-level seroprevalence, we employed the Rogen-Gladen (RG) equation and Bayesian models. Following seroprevalence estimation, we further estimated the attack rate while adjusting for waning immunity. These estimations are dessignated to answer what proportion of the Alberta population that has been infected by SARS-CoV-2. We presented both seroprevalence and attack rate in a unified graph (**Fig**. X), displaying changes over time on a four-month scale.
+To evaluate the severity of Covid-19 pandemic overtime in Alberta province, first we calculated the anti-N assay test positivity. Then, to bridge the gap between test positivity and population-level seroprevalence, we employed the Rogen-Gladen (RG) equation and Bayesian models. Following seroprevalence estimation, we further estimated the attack rate while adjusting for waning immunity. These estimations are dessignated to answer what proportion of the Alberta population that has been infected by SARS-CoV-2. We presented both seroprevalence and attack rate in a unified graph (**Fig**. X), displaying changes over time on a monthly scale.
 
 ## **Proportion sufficiently protected:**
 
-In evaluating whether participants possess immunity levels sufficient to shield them from future infections, from either vaccination or infection, we applied an age- and sex-adjusted threshold of protection to the quantitative Anti-S assay results. The threshold is cited from a valid source \[source of threshold\], indicating sufficient immunity against future SARS-CoV-2 infection. We also presented the fluctuation of the proportion sufficiently protected over time in another figure (**Fig.** Z), and we conducted sensitivity analyses in which we compare alternative threshold levels. The details of the project flowchart is presented in the **Fig**. Y below.
+In evaluating whether participants possess humoral immunity levels sufficient to shield them from future infections, from either vaccination or infection, we applied a threshold of protection to the quantitative Anti-S assay results. The threshold is cited from the package insert of each assays \[Roche and Abbott\], indicating sufficient antibody level to neutralize over 50% virus, with certain times of dilution (1:20). We also presented the fluctuation of the proportion sufficiently protected over time in another figure (**Fig.** Z), and we conducted sensitivity analyses in which we compared alternative threshold levels. The details of the project flowchart is presented in the **Fig**. Y below.
 
 Fig.Y Project Flowchart
 
 \[Insert the flowchart here\]
-
-The gap between adjusted and unadjused - Rogen-Gladen equation is the cause
-
-In our case, the sensitivity is where most variance come from. Specificity is good over time, and we can used the number published by the manufacturer (Roche & Abbott). Since sens is imperfect (0.8--1.0) and specificity is mostly 100% trustworthy (\~1.0), the R-G equation and be simplified as:
-
-#### **True Prevalence = Observed Test Positivity/sens**
-
-According to the equation above, the worse the sens (smaller in value), the larger the gap between the adjusted (blue) and unadjusted (red). The gap is larger among unadjusted lines (red).
-
-Between data (APL, CBS, CANPATH) diff is not the major focus of this study, Yuan's paper will focus on those. For this paper, the major focus should be the difference between adjusting methods
 
 <br>
 
@@ -164,7 +157,15 @@ ANOVA test, p-values...
 
 # Discussion
 
-A
+The gap between adjusted and unadjused - Rogen-Gladen equation is the cause
+
+In our case, the sensitivity is where most variance come from. Specificity is good over time, and we can used the number published by the manufacturer (Roche & Abbott). Since sens is imperfect (0.8--1.0) and specificity is mostly 100% trustworthy (\~1.0), the R-G equation and be simplified as:
+
+#### **True Prevalence = Observed Test Positivity/sens**
+
+According to the equation above, the worse the sens (smaller in value), the larger the gap between the adjusted (blue) and unadjusted (red). The gap is larger among unadjusted lines (red).
+
+Between data (APL, CBS, CANPATH) diff is not the major focus of this study, Yuan's paper will focus on those. For this paper, the major focus should be the difference between adjusting methods
 
 <br>
 
