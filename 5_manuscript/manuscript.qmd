@@ -79,6 +79,7 @@ theme_set(theme_bw())
 ```{r}
 # Load a sample dataset
 df_samp <- read_excel("../1_data/tables.xlsx", sheet = "sample")
+df_dataset <- read_excel("../1_data/tables.xlsx", sheet = "dataset")
 ```
 
 # Abstract
@@ -123,6 +124,8 @@ Seropravalence and attack rate, why we need to employ RG equation or Bayesian mo
 
 ## Dataset
 
+(beware of the period of data collection for each dataset)
+
 To estimate the SARS-CoV-2 seroprevalence and attack rate in Alberta, we used data from the Alberta Outpatient Lab (APL), Canadian Blood Services (CBS) and Canadian Partnership for Tomorrow's Health (CANPATH). Alberta Health Services (AHS) tested \>160,000 APL blood draws for SARS-CoV-2 anti-N and anti-S antibodies from June 2020 until December 2021. CBS has tested \>450,000 blood donations for both antibodies levels since March 2020. CANPATH has provided data with sample size \> XX. Besides of assay results, all three datasets include demographic variables such as donor's sex, self-reported race/ethnicity, and age. From their address, neighborhood material/social deprivation and urban/rural indicator have been derived.
 
 Besides of serology test results and demographic data, CBS has linked the administrative data for the Alberta cohort, which provided additional information on their hospitalizations, clinic visits, diagnoses, COVID vaccinations, and long-term disability claims. Similarly, AHS and CANPATH have completed linkages and included additional vaccination history.
@@ -135,7 +138,13 @@ We did not conduct analysis using a merged data, but instead, we conducted analy
 
 ## **Seroprevalence and attack rate**
 
-To evaluate the severity of Covid-19 pandemic overtime in Alberta province, first we calculated the anti-N assay test positivity. Then, to bridge the gap between test positivity and population-level seroprevalence, we employed the Rogen-Gladen (RG) equation and Bayesian models. Following seroprevalence estimation, we further estimated the attack rate while adjusting for waning immunity. These estimations are dessignated to answer what proportion of the Alberta population that has been infected by SARS-CoV-2. We presented both seroprevalence and attack rate in a unified graph (**Fig**. X), displaying changes over time on a monthly scale.
+To evaluate the severity of Covid-19 pandemic overtime in Alberta province, first we calculated the anti-N assay test positivity. Then, to bridge the gap between test positivity and population-level seroprevalence, we employed the Rogen-Gladen (RG) equation and Bayesian models. Following seroprevalence estimation, we further estimated the attack rate while adjusting for waning immunity using Bayesian models. These estimations are dessignated to answer what proportion of the target population that has been infected by SARS-CoV-2. We presented both seroprevalence and attack rate in a unified graph (**Fig**. X), displaying changes over time on a monthly scale.
+
+Rogan Gladen equation:
+
+$$
+Prevalence = \frac{TestPositivity + (Spec-1)}{Spec + (Sens-1))}
+$$
 
 ## **Proportion sufficiently protected:**
 
@@ -215,6 +224,23 @@ t_samp <- align(t_samp, align = "left", part = "all")
 
 t_samp
 ```
+
+Table 2 Caption Here
+```{r}
+t_dataset<-as_flextable(df_dataset)
+t_dataset <- fontsize(t_dataset, size = 10, part = "all")
+t_dataset <- font(t_dataset, fontname = "Times", part = "all")
+t_dataset <- theme_box(t_dataset)
+t_dataset <- bg(t_dataset, bg = "#EAEAEA", part = "header")
+t_dataset <- width(t_dataset, 1, 1.7)
+t_dataset <- bg(t_dataset, i = c(1, 4), bg = "#DDDDDD", part = "body")
+t_dataset <- bold(t_dataset, i = c(1, 4), part = "body")
+t_dataset <- align(t_dataset, align = "left", part = "all")
+
+t_dataset
+```
+
+
 :::
 
 {{< pagebreak >}}
