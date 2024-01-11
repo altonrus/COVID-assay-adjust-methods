@@ -44,7 +44,7 @@ moment but it's being actively worked on. To install latest package version, use
 
 --->
 ```
-Jiacheng Chen^1,2^, ..., W. Alton Russell^1,2^
+Jiacheng Chen^1,2^, Yuan Yu^1^,..., W. Alton Russell^1,2^
 
 <br>
 
@@ -63,22 +63,23 @@ Jiacheng Chen^1,2^, ..., W. Alton Russell^1,2^
 {{< pagebreak >}}
 
 ```{r setup, include=FALSE}
-library(ggplot2) #plots
-library(data.table) #for using datatables instead of frames
-library(scales) #formatting plot legends and text
-library(readxl) #read.excel
-library(flextable) #generating tables
+library(ggplot2)       #plots
+library(data.table)    #for using datatables instead of frames
+library(scales)        #formatting plot legends and text
+library(readxl)        #read.excel
+library(flextable)     #generating tables
 # library(ftExtra)
-# library(officedown) #formatting for word
+# library(officedown)  #formatting for word
 # library(officer)
 # library(stringr)
 theme_set(theme_bw())
-
 ```
 
-```{r}
+```{r, include=FALSE}
 # Load a sample dataset
 df_samp <- read_excel("../1_data/tables.xlsx", sheet = "sample")
+
+# This table to summarize three dataset we used
 df_dataset <- read_excel("../1_data/tables.xlsx", sheet = "dataset")
 ```
 
@@ -96,7 +97,7 @@ df_dataset <- read_excel("../1_data/tables.xlsx", sheet = "dataset")
 
 # Introduction
 
-Citation [@Langham2018a]. See @fig-sample, @cor-sample, @thm-sample, and @lem-sample.
+Citation [@Langham2018a]. See @fig-sample, @cor-sample, @thm-sample, @thm-data, and @lem-sample.
 
 The Covid-19 pandemic overview, global and what it looks like in Canada.
 
@@ -124,41 +125,48 @@ Seropravalence and attack rate, why we need to employ RG equation or Bayesian mo
 
 ## Dataset
 
-(beware of the period of data collection for each dataset)
+To estimate the SARS-CoV-2 seroprevalence and attack rate in Alberta, we used data from the Alberta Outpatient Lab (APL), Canadian Blood Services (CBS) and Canadian Partnership for Tomorrow's Health (CANPATH). Alberta Health Services (AHS) tested \>160,000 APL blood draws for SARS-CoV-2 anti-N and anti-S antibodies from June 2020 until October 2022. CBS has tested \>450,000 blood donations for both antibodies levels since March 2020. CANPATH has provided data with sample size \> XX. Besides of assay results, all three datasets include demographic variables such as donor's sex, self-reported race/ethnicity, and age. From their address, neighborhood material/social deprivation and urban/rural indicator have been derived.
 
-To estimate the SARS-CoV-2 seroprevalence and attack rate in Alberta, we used data from the Alberta Outpatient Lab (APL), Canadian Blood Services (CBS) and Canadian Partnership for Tomorrow's Health (CANPATH). Alberta Health Services (AHS) tested \>160,000 APL blood draws for SARS-CoV-2 anti-N and anti-S antibodies from June 2020 until December 2021. CBS has tested \>450,000 blood donations for both antibodies levels since March 2020. CANPATH has provided data with sample size \> XX. Besides of assay results, all three datasets include demographic variables such as donor's sex, self-reported race/ethnicity, and age. From their address, neighborhood material/social deprivation and urban/rural indicator have been derived.
+Besides of serology test results and demographic data, CBS has linked the administrative data for the cohort, which provided additional information on their hospitalizations, clinic visits, diagnoses, COVID vaccinations, and long-term disability claims. Similarly, AHS and CANPATH have completed linkages and included additional vaccination history.
 
-Besides of serology test results and demographic data, CBS has linked the administrative data for the Alberta cohort, which provided additional information on their hospitalizations, clinic visits, diagnoses, COVID vaccinations, and long-term disability claims. Similarly, AHS and CANPATH have completed linkages and included additional vaccination history.
+The three datasets feature different data collection time frames. The CBS dataset has the most extended period, ranging from December 2020 to February 2023. APL's data collection spans from June 2020 to October 2022, but it's important to note that anti-N assay results are only available starting from December 2021. Meanwhile, the CANPATH dataset is accessible for a shorter duration, from September 2020 to May 2021. 
 
-We did not conduct analysis using a merged data, but instead, we conducted analysis separately for each data and presented the results in a unified graph (**Fig**. Y). **Table.X** below summarized the differences among three data utilized in the study. For more detail, see **Table. Z** in the result section.
+We did not conduct analysis using a merged data, but instead, we conducted analysis separately for each data and presented the results in a graph panel (@fig-seroprevalence). @thm-data below summarized the differences among three data utilized in the study.
 
-**Table.X** Summary of difference among serosurveillance datasets from CBS and AHS
+@thm-data CBS, CANPATH and APL
 
-\[insert a table here\]
+\[insert @thm-data here if necessary\]
 
 ## **Seroprevalence and attack rate**
 
-To evaluate the severity of Covid-19 pandemic overtime in Alberta province, first we calculated the anti-N assay test positivity. Then, to bridge the gap between test positivity and population-level seroprevalence, we employed the Rogen-Gladen (RG) equation and Bayesian models. Following seroprevalence estimation, we further estimated the attack rate while adjusting for waning immunity using Bayesian models. These estimations are dessignated to answer what proportion of the target population that has been infected by SARS-CoV-2. We presented both seroprevalence and attack rate in a unified graph (**Fig**. X), displaying changes over time on a monthly scale.
+To evaluate the severity of Covid-19 pandemic overtime in Alberta province, first we calculated the anti-N assay test positivity. Then, to bridge the gap between test positivity and population-level seroprevalence, we employed the Rogen-Gladen (RG) equation and Bayesian models. Following seroprevalence estimation, we further estimated the attack rate while adjusting for waning immunity using Bayesian models. These estimations are dessignated to answer what proportion of the target population that has been infected by SARS-CoV-2. We presented both seroprevalence and attack rate in a unified graph (@fig-seroprevalence), displaying changes over time on a monthly scale.
 
 Rogan Gladen equation:
 
 $$
 Prevalence = \frac{TestPositivity + (Spec-1)}{Spec + (Sens-1))}
 $$
+Bayesian models adjusting for sensitivity:
+
+$$
+
+$$
+
+Bayesian models adjusting for waning immunity:
+$$
+
+$$
 
 ## **Proportion sufficiently protected:**
 
-In evaluating whether participants possess humoral immunity levels sufficient to shield them from future infections, from either vaccination or infection, we applied a threshold of protection to the quantitative Anti-S assay results. The threshold is cited from the package insert of each assays \[Roche and Abbott\], indicating sufficient antibody level to neutralize over 50% virus, with certain times of dilution (1:20). We also presented the fluctuation of the proportion sufficiently protected over time in another figure (**Fig.** Z), and we conducted sensitivity analyses in which we compared alternative threshold levels. The details of the project flowchart is presented in the **Fig**. Y below.
+In evaluating whether participants possess humoral immunity levels sufficient to shield them from future infections, from either vaccination or infection, we applied a threshold of protection to the quantitative Anti-S assay results. The threshold is cited from the package insert of each assays \[Roche and Abbott\], indicating sufficient antibody level to neutralize over 50% virus, with certain times of dilution (1:20). We also presented the fluctuation of the proportion sufficiently protected over time in another figure (@fig-immunity), and we conducted sensitivity analyses in which we compared alternative threshold levels. The details of the sensitivity analysis is presented in the **Fig**. Y (haven't scratched this one yet).
 
-Fig.Y Project Flowchart
-
-\[Insert the flowchart here\]
+\[Insert @fig-immunity here if necessary\]
 
 <br>
 
 # Results
 
-**Table.Z** Difference among serosurveillance datasets from CBS and AHS
 
 ANOVA test, p-values...
 
@@ -166,11 +174,13 @@ ANOVA test, p-values...
 
 # Discussion
 
-The gap between adjusted and unadjused - Rogen-Gladen equation is the cause
+Notes: The gap between Rogen-Gladen adjusted sero-prevalence and unadjused sero-positivity.
 
 In our case, the sensitivity is where most variance come from. Specificity is good over time, and we can used the number published by the manufacturer (Roche & Abbott). Since sens is imperfect (0.8--1.0) and specificity is mostly 100% trustworthy (\~1.0), the R-G equation and be simplified as:
 
-#### **True Prevalence = Observed Test Positivity/sens**
+$$
+Prevalence = \frac{TestPositivity}{Sens}
+$$
 
 According to the equation above, the worse the sens (smaller in value), the larger the gap between the adjusted (blue) and unadjusted (red). The gap is larger among unadjusted lines (red).
 
@@ -206,7 +216,7 @@ Between data (APL, CBS, CANPATH) diff is not the major focus of this study, Yuan
 # Tables
 
 ::: {#thm-sample}
-Table caption here.
+This is a sample table
 
 ```{r}
 t_samp <- as_flextable(as_grouped_data(df_samp,
@@ -224,23 +234,28 @@ t_samp <- align(t_samp, align = "left", part = "all")
 
 t_samp
 ```
+:::
 
-Table 2 Caption Here
+::: {#thm-data}
+The table below displays the distribution of age groups and gender across all three datasets. It also details the provinces where the data was collected, along with the corresponding data collection periods.
+
 ```{r}
 t_dataset<-as_flextable(df_dataset)
 t_dataset <- fontsize(t_dataset, size = 10, part = "all")
 t_dataset <- font(t_dataset, fontname = "Times", part = "all")
-t_dataset <- theme_box(t_dataset)
-t_dataset <- bg(t_dataset, bg = "#EAEAEA", part = "header")
-t_dataset <- width(t_dataset, 1, 1.7)
-t_dataset <- bg(t_dataset, i = c(1, 4), bg = "#DDDDDD", part = "body")
-t_dataset <- bold(t_dataset, i = c(1, 4), part = "body")
-t_dataset <- align(t_dataset, align = "left", part = "all")
+
+t_dataset <- bold(t_dataset, i = 1, part = "header")
+t_dataset <- bold(t_dataset, i = c(2, 6, 9), part = "body")
+
+#t_dataset <- theme_box(t_dataset)
+#t_dataset <- bg(t_dataset, bg = "#EAEAEA", part = "header")
+#t_dataset <- width(t_dataset, 1, 1.7)
+#t_dataset <- bg(t_dataset, i = c(1, 4), bg = "#DDDDDD", part = "body")
+#t_dataset <- bold(t_dataset, i = c(1, 4), part = "body")
+#t_dataset <- align(t_dataset, align = "left", part = "all")
 
 t_dataset
 ```
-
-
 :::
 
 {{< pagebreak >}}
@@ -252,7 +267,22 @@ t_dataset
 #| fig-cap: "Figure caption here."
 
 knitr::include_graphics("../4_output/figs/figure.png")
+```
 
+```{r}
+#| label: fig-seroprevalence
+#| fig-cap: "The figure panel above presents the temporal changes in seroprevalence and attack rate, grouped by province and data source. Each figure displays the unadjusted seropositivity, the seroprevalence adjusted using the Rogan-Gladen equation, the seroprevalence adjusted by Bayesian models, and the attack rates. The calculations of seropositivity, seroprevalence, and attack rate are based on the qualitative results of the anti-N assay. 
+#| (Just a scratch, not the real fig)"
+
+knitr::include_graphics("../4_output/figs/Figure.1 Seroprelance and attack rate by province and data source.png")
+```
+
+```{r}
+#| label: fig-immunity
+#| fig-cap: "The figure panel above depicts the temporal fluctuations in quantitative anti-S assay results, grouped by province and data source. Two cutoff indices (COIs) are utilized for different public health interpretations. The COI of 0.8, recommended by the manufacturer (Roche), is optimal for identifying the presence of antibodies in the blood sample. Meanwhile, a COI of 15 is indicative of a threshold for sufficient humoral immunity against the SARS-CoV-2 virus. We also applied Rogen-Gladen equation and Bayesian models to adjust for test sensitivity.
+#| (Just one fig, will add more to build a panel)"
+
+knitr::include_graphics("../4_output/figs/Figure.2 Immunity.png")
 ```
 
 {{< pagebreak >}}
