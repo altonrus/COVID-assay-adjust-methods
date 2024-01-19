@@ -119,23 +119,23 @@ Seropravalence and attack rate, why we need to employ RG equation or Bayesian mo
 
 **Notes**: Unlike the DBS vs VBS manuscript, the methods section of this project is mostly [unfinished]{.underline}. This section only shows the plan and the flow chart of the project in general, while the details of it needs constantly updating and polishing overtime, as the project goes. The potential obstacles were listed below:
 
--   APL assay data before the Omicron wave was mostly missing, Carmen said they have already approved the data access but the data is still on its way.
+-   APL assay data before the Omicron wave was mostly missing, Carmen said they have already approved the data access but the data is still on its way. Updates Jan-16-2024: Carmen said more data will be available soon.
 
--   In AB Outpatient Lab Data, they changed the assay (Diasorin S --\> Abbott S) in the midway, this would affect the validity of analysis based on quantitative test results, as the results from different assay are not directly comparable. Hopefully this can be clarified in the updated version of the dataset.
+-   In AB Outpatient Lab Data, they changed the assay (Diasorin S --\> Abbott S) in the midway, this would affect the validity of analysis based on quantitative test results, as the results from different assay are not directly comparable. Hopefully this can be clarified in the updated version of the dataset. Our currently analysis assume the Anti-S used in omicron wave are all Abbott's, based on the paper published by Carmen in the post-vax stage: https://doi.org/10.1080/23744235.2022.2080250
 
 ## Dataset
 
 To estimate the SARS-CoV-2 seroprevalence and attack rate in Alberta, we used data from the Alberta Outpatient Lab (APL), Canadian Blood Services (CBS) and Canadian Partnership for Tomorrow's Health (CANPATH). Alberta Health Services (AHS) tested \>160,000 APL blood draws for SARS-CoV-2 anti-N and anti-S antibodies from June 2020 until October 2022. CBS has tested \>450,000 blood donations for both antibodies levels since March 2020. CANPATH has provided data with sample size \> XX. Besides of assay results, all three datasets include demographic variables such as donor's sex, self-reported race/ethnicity, and age. From their address, neighborhood material/social deprivation and urban/rural indicator have been derived.
 
-Besides of serology test results and demographic data, CBS has linked the administrative data for the cohort, which provided additional information on their hospitalizations, clinic visits, diagnoses, COVID vaccinations, and long-term disability claims. Similarly, AHS and CANPATH have completed linkages and included additional vaccination history.
+**Notes**: *The paragraph below describes briefly about the time frame of data collection in those datasets. CBS is still actively updating (last ver downloaded on Nov 30th) and APL is also actively updating, we are currently waiting for additional linked variables from Carmen.*
 
-The three datasets feature different data collection time frames. The CBS dataset has the most extended period, ranging from December 2020 to February 2023. APL's data collection spans from June 2020 to October 2022, but it's important to note that anti-N assay results are only available starting from December 2021. Meanwhile, the CANPATH dataset is accessible for a shorter duration, from September 2020 to May 2021. 
+The three datasets feature different data collection time frames. The CBS dataset has the most extended period, ranging from December 2020 to February 2023. APL's data collection spans from June 2020 to October 2022, but it's important to note that anti-N assay results are only available starting from December 2021. Meanwhile, the CANPATH dataset is accessible for a shorter duration, from September 2020 to May 2021.
 
 We did not conduct analysis using a merged data, but instead, we conducted analysis separately for each data and presented the results in a graph panel (@fig-seroprevalence). @thm-data below summarized the differences among three data utilized in the study.
 
 @thm-data CBS, CANPATH and APL
 
-\[insert @thm-data here if necessary\]
+[insert @thm-data here if necessary]
 
 ## **Seroprevalence and attack rate**
 
@@ -145,28 +145,25 @@ Rogan Gladen equation:
 
 $$
 Prevalence = \frac{TestPositivity + (Spec-1)}{Spec + (Sens-1))}
-$$
-Bayesian models adjusting for sensitivity:
+$$ Bayesian models adjusting for sensitivity:
 
-$$
+\$\$
 
-$$
+\$\$
 
-Bayesian models adjusting for waning immunity:
-$$
+Bayesian models adjusting for waning immunity: \$\$
 
-$$
+\$\$
 
-## **Proportion sufficiently protected:**
+## **NT50 and corresponding antibody level:**
 
 In evaluating whether participants possess humoral immunity levels sufficient to shield them from future infections, from either vaccination or infection, we applied a threshold of protection to the quantitative Anti-S assay results. The threshold is cited from the package insert of each assays \[Roche and Abbott\], indicating sufficient antibody level to neutralize over 50% virus, with certain times of dilution (1:20). We also presented the fluctuation of the proportion sufficiently protected over time in another figure (@fig-immunity), and we conducted sensitivity analyses in which we compared alternative threshold levels. The details of the sensitivity analysis is presented in the **Fig**. Y (haven't scratched this one yet).
 
-\[Insert @fig-immunity here if necessary\]
+[Insert @fig-immunity here if necessary]
 
 <br>
 
 # Results
-
 
 ANOVA test, p-values...
 
@@ -176,7 +173,7 @@ ANOVA test, p-values...
 
 Notes: The gap between Rogen-Gladen adjusted sero-prevalence and unadjused sero-positivity.
 
-In our case, the sensitivity is where most variance come from. Specificity is good over time, and we can used the number published by the manufacturer (Roche & Abbott). Since sens is imperfect (0.8--1.0) and specificity is mostly 100% trustworthy (\~1.0), the R-G equation and be simplified as:
+In our case, the sensitivity is where most variance come from. Specificity is good over time, and we shall not only take the numbers published by the manufacturer (Roche & Abbott) into consideration. Since sens is imperfect (0.8--1.0) and specificity is mostly 100% trustworthy (\~1.0), the R-G equation can be simplified as:
 
 $$
 Prevalence = \frac{TestPositivity}{Sens}
@@ -184,7 +181,13 @@ $$
 
 According to the equation above, the worse the sens (smaller in value), the larger the gap between the adjusted (blue) and unadjusted (red). The gap is larger among unadjusted lines (red).
 
-Between data (APL, CBS, CANPATH) diff is not the major focus of this study, Yuan's paper will focus on those. For this paper, the major focus should be the difference between adjusting methods
+**Notes**: *Variances among data (APL, CBS, CANPATH) is not the major focus of this study, Yuan's paper will focus on those by evaluating the representativeness of the serosurveillance data. For this paper, the major focus should be the difference between adjusting methods. The potential readers of this papers includes those who are using serosurveillance data to monitor the progress of Covid pandemic, or other pathogens of interests which possess similar features as SARS-CoV-2.*
+
+The take-home messages would be:
+
+1.  Without any adjustment, the public health inference on test positivity is very limited. It only estimates the proportion of test positive results among blood samples collected in the serosurveillance study.
+2.  Adjusting for certain factors will change the public health inference, meanwhile it will also improve its generalizability. When the imperfect nature of the seroassays is taken into account, the adjusted proportion of positive test results (seroprevalence) will be able to represent the target population in our target population, from which our sample has been collected. Upon the seroprevalence, after adjusting for seroreversion using Bayesian models, we get attack rates of SARS-CoV-2, which estimates the proportion of population infected by the virus since the beginning of pandemic.
+3.  There's gap among all those different measurements, and also they have different public health inference. Future researchers should be cautious when making references to those different measurements.
 
 <br>
 
@@ -292,6 +295,12 @@ knitr::include_graphics("../4_output/figs/Figure.2 Immunity.png")
 <br>
 
 # A. Supplement section
+
+## Supplement Methods
+
+Besides of serology test results and demographic data, CBS has linked the administrative data for the cohort, which provided additional information on their hospitalizations, clinic visits, diagnoses, COVID vaccinations, and long-term disability claims. Similarly, AHS and CANPATH have completed linkages and included additional vaccination history.
+
+**Notes**: *Current ver of APL has completed very limited data linkage, which only includes PCR test results/time and vaccination time. The paragraph briefly describe the data linkage for three datasets, however for now we do not need those variables from linked administrative data.*
 
 {{< pagebreak >}}
 
