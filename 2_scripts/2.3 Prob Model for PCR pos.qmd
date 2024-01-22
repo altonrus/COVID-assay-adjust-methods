@@ -1,0 +1,89 @@
+---
+title: "2.3 Prob Model for PCR Positivity Estimation"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+The aim of this qmd file is providing an alternative way to monitor the severity of the outbreak. Besides of cumulative incidence in a certain time interval (like 3 months) we build a probabilistic model to estimate the prob of having a positive PCR test results in last three months. Those two are similar but not exactly the same.
+
+By calculating monthly average of the prob(PCR+ in past 3 months) we got an estimation in each month. By linking all those dots together we got a curve, suggesting the changing of severity of the pandemic overtime.
+
+## Running Code
+
+## Load packages
+```{r}
+library(dplyr)         # Data management
+library(ggplot2)       # ggplot
+library(zoo)           # year-month format
+library(lmtest)        # for LR test, comparing models
+#library(reshape2)      # for melt() function
+```
+
+## Load dataset
+```{r}
+# The CBS Ab subset data
+load(file = "../1_data/private/CBS_Ab.RData")
+load(file = "../1_data/private/RFD4682e.RData")
+```
+
+##============================ Part I. Probablistic Model ====================##
+
+## Create a small subset for PCR+ data
+```{r}
+APL_PCR<-RFD4682_e %>%
+  .[is.na(.$`N-IgG_RESULT`)==F & .$NAAT_STATUS %in% c("Negative","Positive"),]
+APL_PCR$NAAT[APL_PCR$NAAT_STATUS=="Positive"]<-1
+APL_PCR$NAAT[APL_PCR$NAAT_STATUS=="Negative"]<-0
+APL_PCR$NAAT<-as.numeric(APL_PCR$NAAT)
+table(APL_PCR$NAAT_STATUS, APL_PCR$NAAT, useNA = 'ifany')
+
+# A subset for those who got results within 90 days
+APL_PCR90<-APL_PCR %>%
+  .[.$DAYS_SINCE_NAAT>=0 & .$DAYS_SINCE_NAAT<=90,]
+```
+
+## Build regression model using the data
+```{r}
+# Model 1: add age and sex as covariates, 90 days only
+plm01<-glm(NAAT ~ AGE_AT_COLLECTION + GENDER  + N, data = APL_PCR90,
+           family = binomial(link = "logit"))
+summary(plm01)
+
+# Model 2: add age and sex as covariates, everyone
+plm02<-glm(NAAT ~ AGE_AT_COLLECTION + GENDER  + N, data = APL_PCR,
+           family = binomial(link = "logit"))
+summary(plm02)
+
+# Model 3, add NAAT time into the model and compare it with model 2
+plm03<-glm(NAAT ~ AGE_AT_COLLECTION + GENDER  + N + DAYS_SINCE_NAAT, data = APL_PCR,
+           family = binomial(link = "logit"))
+summary(plm03)
+
+lrtest(plm02, plm03) # Sig difference, much lower AIC
+```
+Based on model 2 we can also add time since last PCR test into analysis, and it will improve AIC greatly for model fitting. However, this model is not applicable for other datasets as the PCR test info is missing.
+
+```{r}
+# Add predicted prob back to the data
+APL_PCR90$NAAT_p<-predict(plm01, type = 'response')
+hist(APL_PCR90$NAAT)
+
+sum(APL_PCR90$NAAT)    # N=1008
+sum(APL_PCR90$NAAT_p)  # N=1008
+```
+
+##====================== Part II. Applying the model to APL data =============##
+
+Apply the APL_90 model to everyone in the dataset, then plot the difference btw those who has PCR test results (observed) and those who do not (predicted).
+
+```{r}
+
+```
+
+
+
+
