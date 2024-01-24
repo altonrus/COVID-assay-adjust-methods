@@ -78,12 +78,87 @@ sum(APL_PCR90$NAAT_p)  # N=1008
 
 ##====================== Part II. Applying the model to APL data =============##
 
-Apply the APL_90 model to everyone in the dataset, then plot the difference btw those who has PCR test results (observed) and those who do not (predicted).
+Apply the APL_90 model to everyone in the dataset, then plot the difference btw those who has PCR test results (observed) and those who do not (predicted). 
 
+Compared to model 1, model 2 is predicting  "ever predicted" rather than "infected in past three months" as it does in model 1. The only one we can apply to the APL data is the model 1.
+
+#### 2.1 Prepare for the dataset
 ```{r}
+#those tested within last 90 days
+summary(APL_PCR90$DAYS_SINCE_NAAT) # Model 1 is built upon this dataset
 
+# Add an indicator for those who had PCR test in past 90 days
+RFD4682_e$PCR90<-rep(0, length(RFD4682_e$order_ID))
+RFD4682_e$PCR90[RFD4682_e$order_ID %in% APL_PCR90$order_ID]<-1
+table(RFD4682_e$PCR90)
+
+# Clean the gender variable (level unknown)
+table(RFD4682_e$GENDER)
+APL_Clean<-RFD4682_e
+APL_Clean$GENDER[APL_Clean$GENDER=="Unknown"]<-NA
+
+# Recode NAAT as 0/1/9
+APL_Clean$NAAT[APL_Clean$NAAT_STATUS=="Positive"]<-1
+APL_Clean$NAAT[APL_Clean$NAAT_STATUS=="Negative"]<-0
+APL_Clean$NAAT[APL_Clean$NAAT_STATUS=="No Prior NAT"]<-9
+APL_Clean$NAAT<-as.numeric(APL_Clean$NAAT)
+table(APL_Clean$NAAT_STATUS, APL_Clean$NAAT, useNA = 'ifany')
+
+# Apply model 1 to APL data (full)
+APL_Clean$NAAT_p<-predict(plm01, newdata = APL_Clean, type = 'response')
+
+# Create NAAT_m, using real NAAT results for those tested <=90 days
+APL_Clean$NAAT_m <- APL_Clean$NAAT_p
+APL_Clean$NAAT_m[APL_Clean$PCR90==1 & APL_Clean$NAAT_STATUS=="Positive"]<-1
+APL_Clean$NAAT_m[APL_Clean$PCR90==1 & APL_Clean$NAAT_STATUS=="Negative"]<-0
+        
+      
+summary(APL_Clean$NAAT_m)
+table(APL_Clean$NAAT_m==1) # number matches
+table(APL_Clean$NAAT_m==0)
 ```
 
+#### 2.2 Based on new data, making plot seperately
+
+```{r}
+# Calculate positivity for each month
+
+# tb1-the data (PCR<90) used to build model
+tb1<-APL_Clean[APL_Clean$PCR90==1,] %>%
+  group_by(Col_Month) %>%
+  summarise(n = n() , pos= mean(NAAT_m))
+tb1$PCR90<-rep(1, length(tb1$Col_Month))
+
+# tb2-we applied the model to the rest of APL (PCR>90) 
+tb2<-APL_Clean[APL_Clean$PCR90==0,] %>%
+  group_by(Col_Month) %>%
+  summarise(n = n() , pos= mean(NAAT_m, na.rm=TRUE))
+tb2$PCR90<-rep(0, length(tb2$Col_Month))
+
+# Merge the data to take a look
+tb3<-merge(tb1, tb2, by = "Col_Month", all.x = T, all.y = T)
+tb3$Col_Month<-as.yearmon(tb3$Col_Month)
+tb3<-tb3[order(tb3$Col_Month),]
+
+# Compare the difference
+# Paired t-test
+t.test(tb3$pos.x[18:27], tb3$pos.y[18:27], paired=1)
+# p-value=0.2761, no sig diff between observed (<90D) and the rest
+```
+#### The plots
+```{r}
+APL_Pmelt<-rbind.data.frame(select(tb1, Col_Month, pos, PCR90), 
+                            select(tb2[18:27,], Col_Month, pos, PCR90))
+APL_Pmelt$PCR90[APL_Pmelt$PCR90==0]<-"Predicted"
+APL_Pmelt$PCR90[APL_Pmelt$PCR90==1]<-"Observed"
+
+APL_Pmelt %>%
+  ggplot(aes(x=Col_Month, y=pos, group=PCR90, colour=PCR90)) +
+  geom_point() +
+  geom_line()  +
+  geom_hline(yintercept=0, colour='blue', linetype=2) +
+  theme_bw() 
+```
 
 
 
