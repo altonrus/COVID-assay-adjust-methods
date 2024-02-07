@@ -8,7 +8,7 @@ editor: visual
 
 Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
 
-The aim of this qmd file is providing an alternative way to monitor the severity of the outbreak. Besides of cumulative incidence in a certain time interval (like 3 months) we build a probabilistic model to estimate the prob of having a positive PCR test results in last three months. Those two are similar but not exactly the same.
+The aim of this qmd file is providing an alternative way to monitor the severity of the outbreak. Besides of cumulative incidence in a certain time interval (like 3 months) we build a probabilistic model to estimate the prob of having a positive PCR test results in last three months. Those two are similar and we can use prob(inf. in past 3-month) to estimate the 3-month rolling incidence.
 
 By calculating monthly average of the prob(PCR+ in past 3 months) we got an estimation in each month. By linking all those dots together we got a curve, suggesting the changing of severity of the pandemic overtime.
 
@@ -20,7 +20,9 @@ library(dplyr)         # Data management
 library(ggplot2)       # ggplot
 library(zoo)           # year-month format
 library(lmtest)        # for LR test, comparing models
-#library(reshape2)      # for melt() function
+#library(reshape2)     # for melt() function
+library(readxl)        # for reading .xlsx data
+library(nnet)          # for multinomial log regression
 ```
 
 ## Load dataset
@@ -29,6 +31,102 @@ library(lmtest)        # for LR test, comparing models
 load(file = "../1_data/private/CBS_Ab.RData")
 load(file = "../1_data/private/RFD4682e.RData")
 ```
+
+## Dataset from previous studies for model building
+```{r}
+## Data-01:France Leon, for negative ref, use non-reactive samples before week 69 (Oct 2020)
+library(readxl)
+X1_pone <- read_excel("../1_data/private/Prob Model/1-pone.xlsx", 
+    sheet = "ST1_Dataset", col_types = c("numeric", 
+        "text", "numeric", "numeric", "numeric", 
+        "numeric", "text", "text", "text", 
+        "text", "text", "text", "text", "text", 
+        "text", "text", "text", "text", "text", 
+        "text", "text", "text", "text", "text", 
+        "text", "text", "text"))
+dta_01<-select(X1_pone, 1:7, 27)
+dta_01s<-dta_01[dta_01$Result=="NonReac" &
+                dta_01$`Donation type`!="Convalescent plasma" &
+                dta_01$`Donation Week`<69,]
+
+# keep only assay, age, sex
+dta_01s<-select(dta_01s, 1,5,6,7)
+colnames(dta_01s)<-c("roche_n", "pid", "age", "gender")
+tb1<-as.data.frame(table(dta_01s$pid))
+colnames(tb1)<-c("pid","freq")
+tb1$sample_wt<-1/tb1$freq
+dta_01s<-merge(dta_01s, select(tb1, 1,3), by="pid",all.x = T, all.y = F)
+
+## add interp var and study ID
+dta_01s$study<-rep(1, length(dta_01s$pid))
+dta_01s$time_pso<-rep("never_inf", length(dta_01s$pid))
+rm(tb1, tb2)
+```
+
+```{r}
+## Data-03, pre-Covid negative ref only, from Jamaica (Carribean)
+X3_mmc2 <- read_excel("../1_data/private/Prob Model/3-mmc2.xlsx", 
+    range = "A2:M124", na = "NT")
+dta_03<-select(X3_mmc2, 2,6)
+dta_03$pid<-c(1:length(dta_03$`Elecsys Index Value`))
+dta_03$study<-rep(3, length(dta_03$pid))
+dta_03$time_pso<-rep("never_inf", length(dta_03$pid))
+
+dta_03s<-dta_03[!(is.na(dta_03$`Elecsys Index Value`) &
+                  is.na(dta_03$`Architect IgG Index Value`)),]
+
+# add weights
+dta_03s$sample_wt<-rep(1, length(dta_03s$pid))
+
+# correct var names
+colnames(dta_03s)<-c("roche_n", "abbott_n",
+                     colnames(dta_03s[,3:6]))
+```
+
+```{r}
+## Data-04, 2/8 months data PSO, extracted from Y. Nagakama et al.
+X4_Nakagama_all <- read_excel("../1_data/private/Prob Model/4-Nakagama_all.xlsx")
+dta_04<-X4_Nakagama_all 
+dta_04$time_pso[dta_04$time_pso=="2 months"]<-"less_3_month"
+dta_04$time_pso[dta_04$time_pso=="8 months"]<-"more_3_month"
+
+# All participants been sampled twice, wt=0.5
+dta_04$sample_wt<-rep(0.5, length(dta_04$pid))
+
+# correct col names
+colnames(dta_04)<-c("study", colnames(dta_04[,2:6]))
+```
+
+```{r}
+## Data-06, shared by Dr Paul Bieniasz
+X6_Paul <- read_excel("../1_data/private/Prob Model/6-2024_02_06_SR1407_McGill.xlsx", 
+    sheet = "data_import", skip = 1)
+dta_06<-select(X6_Paul, 1:6, 9)
+colnames(dta_06)<-c("age", "gender", "pid", "time",
+                    "abbott_n", "roche_n", "study")
+dta_06s<-dta_06[!(is.na(dta_06$abbott_n) &
+                  is.na(dta_06$roche_n)),]
+
+# add time_pso based on time
+dta_06s$time_pso[dta_06s$time<=90]<-"less_3_month"
+dta_06s$time_pso[dta_06s$time> 90]<-"more_3_month"
+table(dta_06s$time_pso, useNA = 'ifany')
+
+# add weights
+tb1<-as.data.frame(table(dta_06s$pid))
+colnames(tb1)<-c("pid","freq")
+tb1$sample_wt<-1/tb1$freq
+dta_06s<-merge(dta_06s, select(tb1, 1,3), by="pid",all.x = T, all.y = F)
+rm(tb1, tb2)
+
+dta_06s<-select(dta_06s, -c("time"))
+```
+
+#### bind all those four data by rows
+```{r}
+dta_all<-dplyr::bind_rows(dta_01s, dta_03s, dta_04, dta_06s)
+```
+
 
 ##============================ Part I. Probablistic Model ====================##
 
@@ -75,6 +173,22 @@ hist(APL_PCR90$NAAT)
 sum(APL_PCR90$NAAT)    # N=1008
 sum(APL_PCR90$NAAT_p)  # N=1008
 ```
+
+## Multinomial Regression Model:
+```{r}
+mnlm01<-multinom(relevel(as.factor(time_pso), ref = "never_inf") ~ roche_n, data = dta_all)
+summary(mnlm01)
+
+(summary(mnlm01))$coeffcients/summary(mnlm01)$standard.errors
+
+# Model 02 takes sample weights into account
+mnlm02<-multinom(relevel(as.factor(time_pso), ref = "never_inf") ~ roche_n, 
+                 data = dta_all, weights = sample_wt)
+summary(mnlm02)
+
+(summary(mnlm01))$coeffcients/summary(mnlm01)$standard.errors
+```
+
 
 ##====================== Part II. Applying the model to APL data =============##
 
