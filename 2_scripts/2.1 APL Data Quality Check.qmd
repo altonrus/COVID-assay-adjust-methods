@@ -375,7 +375,9 @@ table(antin_na, useNA = 'ifany') # N=188,688
 table(is.na(RFD4682_e$`N-IgG_RESULT`)==F,
       is.na(RFD4682_e$`RBD-IgGII_RESULT`)==F, useNA = 'ifany')
 ```
+
 Some additional cleaning/editing, making anti-S quantitative
+
 ```{r}
 # Missing values
 summary(is.na(RFD4682_e$`RBD-IgGII_RESULT`)==F) 
@@ -397,7 +399,9 @@ index<-RFD4682_e$`RBD-IgGII_RESULT` %>%
   grepl("index", .,fixed = F, ignore.case = T)
 table(index) # N=104946
 ```
+
 #### Yuan found this: anti-N is only available for the Omicron stage
+
 ```{r}
 # The APL Data:
 RFD4682_e$COLLECTION_DATE %>%
@@ -414,7 +418,55 @@ RFD4682_e[is.na(RFD4682_e$clean_IDe)==F &
           is.na(RFD4682_e$`RBD-IgGII_RESULT`)==F,]$COLLECTION_DATE %>%
   summary()
 ```
+
+#### As required by Matthew, add quintmat & qunitsoc variable
+```{r}
+# load a matching scale, by 6-digit postal codes
+pcode_match <- read.delim("~/COVID-assay-adjust-methods/1_data/private/ot_ccp_postalcodecodeequivalence.txt")
+
+# load updated version of APL
+library(readxl)
+RFD4682_v2 <- read_excel("1_data/private/RFD4682_Data_for release Jan 2024.xlsx", 
+    sheet = "RFD4682_Full_Data", col_types = c("text", 
+        "numeric", "text", "numeric", "numeric", 
+        "date", "text", "text", "date", "date", 
+        "text", "numeric", "numeric", "text", 
+        "text", "text", "text", "text", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric"))
+View(RFD4682_v2)
+
+# match 6-digit postal codes to the first ver
+RFD4682_e$PAT_POSTALCODE <- RFD4682_v2$PAT_POSTALCODE
+
+# cleanup NA
+length(RFD4682_e$PAT_POSTALCODE[RFD4682_e$PAT_POSTALCODE=="N/A"]) # needs to cleanup "N/A"
+RFD4682_e$PAT_POSTALCODE[RFD4682_e$PAT_POSTALCODE=="N/A"]<-NA
+table(is.na(RFD4682_e$PAT_POSTALCODE))
+
+# does the postal code match?
+# create a truncated ver of 6-digit postal code
+RFD4682_e$PAT3<-substr(RFD4682_e$PAT_POSTALCODE, 1, 3)
+
+RFD4682_e$PAT_match<-if_else(RFD4682_e$PAT_FSA==RFD4682_e$PAT3, 1, 0)
+table(RFD4682_e$PAT_match, useNA = "ifany") # 1065 unmatch, 3276 missing
+
+RFD4682_e %>%
+  .[.$PAT_match == 0 &  !is.na(.$PAT3),] %>%
+  select(PAT_POSTALCODE, PAT3, PAT_FSA)
+# N=1756 unmatched cases btw APL ver 1 & 2. Talked to M. Knight and he would like to use the updated ver
+
+RFD4682_e<-merge(RFD4682_e, select(pcode_match, PCODE, QUINTMAT, QUINTSOC),
+      by.x = "PAT_POSTALCODE", by.y="PCODE", all.x = T, all.y = F)
+
+# a clean version of if for M.Knight
+RFD4682_e1<-select(RFD4682_e, -c("PAT3", "PAT_match", "N", "Col_Month"))
+
+```
+
+
 #### A quick clean of the Anti-N data
+
 ```{r}
 # Remove unecessary 'index'
 table(RFD4682_e$`N-IgG_RESULT`)
@@ -430,6 +482,7 @@ table(RFD4682_e$`N-IgG_INTERP`, useNA = 'ifany')
 ```
 
 #### Add a year-month var
+
 ```{r}
 # only keep the month, remove the data
 RFD4682_e$Col_Month<-format(as.Date(RFD4682_e$COLLECTION_DATE), "%Y-%m")
@@ -438,14 +491,10 @@ table(RFD4682_e$Col_Month, useNA='ifany')
 # as char variable if needed for calculation, use as.yearmon() from {zoo} or just use the Col_Date var
 ```
 
-
 #### Save a cleaned ver of RFD4682e
+
 ```{r}
 save(RFD4682_e, file = "../1_data/private/RFD4682e.RData")
+
+save(RFD4682_e1, file = "../1_data/private/RFD4682e1.RData")
 ```
-
-
-
-
-
-
