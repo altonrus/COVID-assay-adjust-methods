@@ -17,8 +17,8 @@ By calculating monthly average of the prob(PCR+ in past 3 months) we got an esti
 ## Load packages
 ```{r}
 library(dplyr)         # Data management
-library(ggplot2)       # ggplot
-library(ggpubr)     #ggplot2 QQ plot for normality check
+library(ggplot2)       # ggplot2
+library(ggpubr)        # ggplot2 QQ plot for normality check
 library(zoo)           # year-month format
 library(lmtest)        # for LR test, comparing models
 #library(reshape2)     # for melt() function
@@ -342,14 +342,19 @@ CBSs<-cbind.data.frame(select(CBS, pid, sampledate, sex, age, fsa,
 # Recategorize by regions
 table(CBSs$province)
 
-# 12 provinces, recatgorized into five regions
+# 12 provinces, recatgorized into six regions
+# region divided according to Yuan's study. In CBS data since the number of samples from QC and North prov are too small (N=13, 85+83). We decided to exclude samples from those two prov from analysis.
+# Also, since APL provides AB data only, we will divide prairie prov into AB and SKS+MN. This should apply to Canpath data as well.
+
+
 CBSs$region<-rep(NA, length(CBSs$pid))
 CBSs$region[CBSs$province %in% c("NL", "PE", "NS", "NB")]<-"Atlantic"
-CBSs$region[CBSs$province %in% c("QC", "ON")]<-"Central"
-CBSs$region[CBSs$province %in% c("AB", "MB", "SK")]<-"Prairie"
+CBSs$region[CBSs$province %in% c("ON")]<-"Ontario"
+CBSs$region[CBSs$province %in% c("AB")]<-"Alberta"
+CBSs$region[CBSs$province %in% c("MB", "SK")]<-"SK & MB"
 CBSs$region[CBSs$province %in% c("BC")]<-"BC"
-CBSs$region[CBSs$province %in% c("NU/NT", "YT")]<-"North"
 
+# In this way, QC, NU/NT, and YT will be coded as 'NA'
 table(CBSs$province, CBSs$region, useNA = 'ifany')
 
 # Creat sampling months
@@ -359,6 +364,12 @@ table(CBSs$samplemonth, useNA = 'ifany')
 # Creat a ever inf indicator
 CBSs$ever_inf <- 1-CBSs$never_inf
 ```
+#### Save the dataset
+```{r}
+save(CBSs, file='../1_data/private/CBSs.RData')
+```
+
+
 
 #### Creating melt data
 ```{r}
@@ -375,25 +386,28 @@ tb_at<-CBSs[CBSs$region=="Atlantic",] %>%
             less_3_month=mean(less_3_month, na.rm = T))
 tb_at$region<-rep("Atlantic", length(tb_at$n))
 
-tb_ce<-CBSs[CBSs$region=="Central",] %>%
+tb_on<-CBSs[CBSs$region=="Ontario",] %>%
   group_by(samplemonth) %>%
   summarise(n = n() , ever_inf= mean(ever_inf, na.rm = T), 
             less_3_month=mean(less_3_month, na.rm = T))
-tb_ce$region<-rep("Central", length(tb_ce$n))
+tb_on$region<-rep("Ontario", length(tb_on$n))
 
-tb_pr<-CBSs[CBSs$region=="Prairie",] %>%
+tb_ab<-CBSs[CBSs$region=="Alberta",] %>%
   group_by(samplemonth) %>%
   summarise(n = n() , ever_inf= mean(ever_inf, na.rm = T), 
             less_3_month=mean(less_3_month, na.rm = T))
-tb_pr$region<-rep("Prairie", length(tb_pr$n))
+tb_ab$region<-rep("Alberta", length(tb_ab$n))
 
-tb_no<-CBSs[CBSs$region=="North",] %>%
+tb_skm<-CBSs[CBSs$region=="SK & MB",] %>%
   group_by(samplemonth) %>%
   summarise(n = n() , ever_inf= mean(ever_inf, na.rm = T), 
             less_3_month=mean(less_3_month, na.rm = T))
-tb_no$region<-rep("North", length(tb_no$n))
+tb_skm$region<-rep("SK & MB", length(tb_skm$n))
 
-tb_all<-rbind.data.frame(tb_bc, tb_pr, tb_ce, tb_at, tb_no)
+
+tb_all<-rbind.data.frame(tb_bc, tb_ab, tb_skm, tb_on, tb_at)
+# clean NA's
+tb_all<-tb_all[!is.na(tb_all$samplemonth),]
 ```
 
 

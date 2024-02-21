@@ -1,0 +1,162 @@
+---
+title: "2.2.a CBS Preprocessing and Monthly Positivity Figures"
+format: html
+editor: visual
+author: J.Chen (let me know if you run into any troubles with those codes)
+---
+
+## Quarto
+
+This qmd file is to share the code of CBS data cleaning and monthly test positivity figures with Y.Yu, who will apply Bayesian models to adjust for waning sensitivity and specificity.
+
+## Running Code
+
+## Load dataset
+```{r}
+# The CBS Data, extracted using "CITF_CBS_desc_stats.Rmd"
+load(file = "../1_data/private/CBS.RData")
+# Notes: Access to CBS data got denied, ask Amen for access. Y.Yuan has confirmed on 21-Feb-2024 the ver 2023-11-30 of CBS is still the most up-to-date ver.
+
+# APL Data - will be updated soon
+ 
+# Canpath data - will be updated soon
+```
+
+## Load necessary paks
+```{r}
+library(dplyr)         # Data management
+library(reshape2)      # for melt() function
+library(ggplot2)       # ggplot
+library(zoo)           # for year-month format
+```
+
+## Load dataset
+```{r}
+# CBS
+load(file = "../1_data/private/CBS.RData")
+```
+
+
+##==================== Part I. Preprocessing Data ============================##
+
+#### 1.1 CBS data
+```{r}
+# CBS data is clean, no need for preprocessing
+
+# Add region variable for CBS
+table(CBS$province)
+
+# 12 provinces, re-catgorized into six regions
+# region divided according to Yuan's study. In CBS data since the number of samples from QC and North prov are too small (N=13, 85+83). We decided to exclude samples from those three prov from analysis.
+# Also, since APL provides AB data only, we will divide prairie prov into AB and SK+MB. This should apply to Canpath data as well.
+
+CBS$region<-rep(NA, length(CBS$pid))
+CBS$region[CBS$province %in% c("NL", "PE", "NS", "NB")]<-"Atlantic"
+CBS$region[CBS$province %in% c("ON")]<-"Ontario"
+CBS$region[CBS$province %in% c("AB")]<-"Alberta"
+CBS$region[CBS$province %in% c("MB", "SK")]<-"SK & MB"
+CBS$region[CBS$province %in% c("BC")]<-"BC"
+
+# In this way, QC, NU/NT, and YT will be coded as 'NA'
+table(CBS$province, CBS$region, useNA = 'ifany')
+
+# Creat sampling months (need {zoo} pak)
+CBS$samplemonth<-as.yearmon(CBS$sampledate)
+table(CBS$samplemonth, useNA = 'ifany')
+```
+
+#### 1.2 APL data
+```{r}
+# APL data needs additional cleaning, will update this part soon!
+```
+
+#### 1.3 Canpath data
+```{r}
+# Canpath data needs additional cleaning, will update this part soon!
+```
+
+##==================== Part II. Test Positivity & RG =========================##
+
+#### 2.1 CBS data
+```{r}
+# prepare melt data
+tb1<-CBS%>%
+  group_by(samplemonth, region, .add=TRUE) %>%
+  summarise(n = n(), )
+
+tb2<-CBS[CBS$interp_roche_n==1,] %>%
+  group_by(samplemonth, region, .add=TRUE) %>%
+  summarise(n.pos = n(), )
+
+tb3<-merge(tb1, tb2, by = c("samplemonth", "region"), all.x = T, all.y = F)
+tb3$prop.n<-tb3$n.pos/tb3$n
+CBS_pr<-tb3[!is.na(tb3$region),]
+
+# Add R-G adjusted prevalances
+# Sen=99.8%, Spec = 99.5%
+# Source:https://www.rochecanada.com/media/covid-19--an-additional-contribution-to-the-testing-landscape-in
+# tb1$prop.n_RG_h<- (tb1$prop.n+0.995-1)/(0.995+0.998-1)
+
+# Third-party sens & spec
+# Sen=97.2%, spec = 99.8% 
+# Source: https://assets.publishing.service.gov.uk/media/5f05887ad3bf7f2be6e02161/Evaluation__of_sensitivity_and_specificity_of_4_commercially_available_SARS-CoV-2_antibody_immunoassays.pdf
+CBS_pr$prop.n_RG<- (CBS_pr$prop.n+0.998-1)/(0.998+0.972-1)
+
+## According to Yuan's request, add sens & spec to all the obs
+CBS_pr$sens<-rep(0.972, length(CBS_pr$samplemonth))
+CBS_pr$spec<-rep(0.998, length(CBS_pr$samplemonth))
+CBS_pr$data<-rep("CBS", length(CBS_pr$samplemonth))
+
+## drop useless intermediate tables
+rm(tb1, tb2, tb3)
+```
+We only applied the sens & spec from third-party studies, instead of the numbers published online by Roche. 
+
+#### 2.2 APL data
+```{r}
+
+```
+
+#### 2.3 Canpath data
+```{r}
+
+```
+
+#### Merge all three into one
+```{r}
+
+
+# save all those data
+save(CBS_pr, file="../3_intermediate/CBS_pr.RData" )
+```
+
+##==================== Part III.  Figures =========================##
+
+#### 3.1 CBS: Make plots by region
+```{r}
+# Reshape meltted data
+CBS_melt<-reshape2::melt(select(CBS_pr, samplemonth, region,
+                                       prop.n, prop.n_RG), 
+                        id.vars = c("samplemonth", "region"),
+                        variable.name = "Adj",
+                        value.name = "prop")
+
+p01<-CBS_melt %>%
+  ggplot(aes(x=samplemonth, y=prop, group=Adj, colour=Adj)) +
+  geom_point(aes(colour=Adj)) +
+  geom_smooth(method = "loess", aes(colour=Adj), se=FALSE) +
+#  geom_line(aes(colour=Adj))  + #non-smooth curve
+  theme_bw() 
+
+p01 + facet_wrap(~region)
+```
+
+
+
+
+
+
+
+
+
+
