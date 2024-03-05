@@ -103,9 +103,11 @@ df_dataset <- read_excel("../1_data/tables.xlsx", sheet = "dataset")
 
 Test of citation: [@Langham2018a]. See @fig-sample, @cor-sample, @thm-sample, @thm-data, and @lem-sample.
 
-The Covid-19 pandemic overview, global/national (in Canada) trend and how it envolved overtime in each regions of Canada. Serosurveillance programs in Canada, and its importance.
+\[Be concise in this section\]
 
-Two types of antibodies to be detected by assays: anti-spike and anti-nucleocapsid. Why we treated them differently in data analysis, one for quantitative and anothor one for qualitative test results.
+\[The Covid-19 pandemic overview\]: Brief, general intro on Covid-19. Serosurveillance programs in Canada, and its importance. Use previous serosurveillence studies as examples.
+
+\[Two types of antibodies to be detected by assays\]: Anti-spike and anti-nucleocapsid. Why we treated them differently in data analysis, one for quantitative and anothor one for qualitative test results.
 
 -   Anti-S (humoral response to infection or vaccination) and anti-N (marker of natural infection)
 
@@ -113,9 +115,9 @@ Two types of antibodies to be detected by assays: anti-spike and anti-nucleocaps
 
 -   Anti-S level wanes slower than anti-N level after infection
 
-Previous studies have found an association between seropositivity/ab levels and intensity of immunity (humoral + cellular). Declining ab level suggesting waning of immunity against SARS-COV-2 after infection and immunization.
+\[Ab level and immunity\]: Previous studies have found an association between seropositivity/ab levels and intensity of immunity (humoral + cellular). Declining ab level suggesting waning of immunity against SARS-COV-2 after infection and immunization.
 
-Seropravalence and rolling incidence, why we need to employ RG equation or Bayesian model to estimated seropravalence, and why we also need probabilistic models to predict past infection using early 2020 and pre-Covid neg ref data.
+\[Our measurement and adjustment\]: Seropravalence and rolling incidence, why we need to employ RG equation or Bayesian model to estimated seropravalence, and why we also need probabilistic models to predict past infection using early 2020 and pre-Covid neg ref data.
 
 {{< pagebreak >}}
 
@@ -160,29 +162,21 @@ Rogan Gladen equation:
 
 $$
 Prevalence = \frac{TestPositivity + (Spec-1)}{Spec + (Sens-1))}
-$$ Bayesian models adjusting for sensitivity:
+$$
+
+Bayesian models adjusting for sensitivity:
 
 \$\$
 
 \$\$
 
-Bayesian models adjusting for waning immunity:
-
-\$\$
-
-\$\$
-
-## **NT50 and corresponding antibody level:**
-
-In evaluating whether participants possess humoral immunity levels sufficient to shield them from future infections, from either vaccination or infection, we applied a threshold of protection to the quantitative Anti-S assay results. The threshold is cited from the package insert of each assays \[Roche and Abbott\], indicating sufficient antibody level to neutralize over 50% virus, with certain times of dilution (1:20). We also presented the fluctuation of the proportion sufficiently protected over time in another figure (@fig-immunity), and we conducted sensitivity analyses in which we compared alternative threshold levels. The details of the sensitivity analysis is presented in the **Fig**. Y (haven't scratched this one yet).
-
-[Insert @fig-immunity here if necessary]
+\[Bayesian models adjusting for waning sensitivity\]: Equation (above), model input and output. What covariates we've adjusted for.
 
 ## Attack rates - TBD
 
 The cumulative attack rates is no longer of interest, as the majority of the Canadian population has been infected at least once since the Omicron wave. As the comparison rolling incidence proportion is a measurement with more meaningful public health implications.
 
-## Mixture  Models - TBD
+## Mixture Models - TBD
 
 In mixture models, we assume the dist of certain variables (in our case it is S/Co of Anti-N/S assay results) has two (or maybe three) distinct (though partially overlapping) distributions. Mixture models were utilized by previous studies to estimate cumulative incidence.
 
@@ -190,21 +184,27 @@ In mixture models, we assume the dist of certain variables (in our case it is S/
 
 <https://www.sciencedirect.com/science/article/pii/S175543652200024X>
 
+## **NT50 and corresponding antibody level:**
+
+In evaluating whether participants possess humoral immunity levels sufficient to shield them from future infections, from either vaccination or infection, we applied a threshold of protection to the quantitative Anti-S assay results. The threshold is cited from the package insert of each assays \[Roche and Abbott\], indicating sufficient antibody level to neutralize over 50% virus, with certain times of dilution (1:20). We also presented the fluctuation of the proportion sufficiently protected over time in another figure (@fig-immunity), and we conducted sensitivity analyses in which we compared alternative threshold levels. The details of the sensitivity analysis is presented in the **Fig**. Y (haven't scratched this one yet).
+
+[Insert @fig-immunity here if necessary]
+
 <br>
 
 # Results
 
-A paragraph about test sample positivity, Rogen-Gladen adjusted seroprevalence and Bayesian model adjusted seroprevalence. Describe the trend of changing overtime, difference and consistency among different adjusting methos, regions and datasets. Cite figures accordingly if necessary.
+\[Describe fig: seroprevalence\] A paragraph about test sample positivity, Rogen-Gladen adjusted seroprevalence and Bayesian model adjusted seroprevalence. Describe the trend of changing overtime, difference and consistency among different adjusting methos, regions and datasets. Cite figures accordingly if necessary.
 
-A paragraph about estimated proportion of ever infected & infected in past 3 month.
+\[Describe fig: rolling inc prop\] A paragraph about estimated proportion of ever infected & infected in past 3 month.
 
-A paragraph about estimated proportion with sufficient humoral immunity to protect them from future possible SARS-CoV-2 infection. This proportion is also adjusted by Rogen-Gladen equation and Bayesian models.
+\[Describe fig: NT50 and corresponding Ab level\] A paragraph about estimated proportion with sufficient humoral immunity to protect them from future possible SARS-CoV-2 infection. This proportion is also adjusted by Rogen-Gladen equation and Bayesian models.
 
 <br>
 
 # Discussion
 
-The gap between Rogen-Gladen adjusted sero-prevalence and unadjused sero-positivity: In our case, the sensitivity is where most variance come from. As the proof of excellent assay performance, assay manufacturer published the sensitivity and specificity of their assay. However, their test performance figures derived from hospitalized patients with more severe symptoms, who were samples at the time when sero antibody level reachd its highest level. Due to the representativeness issue, it is not recommended only take the test performance figures published by the assays manufacturer into consideration. 
+The gap between Rogen-Gladen adjusted sero-prevalence and unadjused sero-positivity: In our case, the sensitivity is where most variance come from. As the proof of excellent assay performance, assay manufacturer published the sensitivity and specificity of their assay. However, their test performance figures derived from hospitalized patients with more severe symptoms, who were samples at the time when sero antibody level reached its highest level. Due to the representativeness issue, it is not recommended only take the test performance figures published by the assays manufacturer into consideration.
 
 Since sens is imperfect (0.85--1.0) and specificity is mostly 100% trustworthy (\~1.0), the R-G equation can be simplified as:
 
@@ -212,7 +212,7 @@ $$
 Prevalence = \frac{TestPositivity}{Sens}
 $$
 
-According to the equation above, the worse the sensitivity (smaller in value), the larger the gap between the adjusted and unadjusted. We found larger gaps among the Abbott assay results, as the sensitivity we used for Abbott assays are smaller, when compared to sensitivity we used for Roche assays. 
+According to the equation above, the worse the sensitivity (smaller in value), the larger the gap between the adjusted and unadjusted. We found larger gaps among the Abbott assay results, as the sensitivity we used for Abbott assays are smaller, when compared to sensitivity we used for Roche assays.
 
 ```{=html}
 <!---
@@ -222,15 +222,17 @@ Variances among data (APL, CBS, CANPATH) is not the major focus of this study, Y
 So we won't discuss the among-dataset differences on measurements in the discussion section
 --->
 ```
+\[Difference/Consistence among adjusting methods, regions in Canada\] Is our finding consistent with previous studies?\]
 
-Difference/Consistence among adjusting methods, regions in Canada. Is our finding consistent with previous studies?
+\[Strength and Limitation\]
 
-Strength and Limitation
+\[Public health implications\]
 
-Public health implications:
-1.  Without any adjustment, the public health inference on test positivity is very limited. It only estimates the proportion of test positive results among blood samples collected in the serosurveillance study.
-2.  Adjusting for certain factors will change the public health inference, meanwhile it will also improve its generalizability. When the imperfect nature of the seroassays is taken into account, the adjusted proportion of positive test results (seroprevalence) will be able to represent the target population in our target population, from which our sample has been collected. Upon the seroprevalence, after adjusting for seroreversion using Bayesian models, we get attack rates of SARS-CoV-2, which estimates the proportion of population infected by the virus since the beginning of pandemic.
-3.  There's some differences among all those different quantitative measurements, and also they have different public health inference. Future researchers should be cautious when making references to those different measurements.
+1.      Without any adjustment, the public health inference on test positivity is very limited. It only estimates the proportion of test positive results among blood samples collected in the serosurveillance study.
+
+2.      Adjusting for certain factors will change the public health inference, meanwhile it will also improve its generalizability. When the imperfect nature of the seroassays is taken into account, the adjusted proportion of positive test results (seroprevalence) will be able to represent the target population in our target population, from which our sample has been collected. Upon the seroprevalence, after adjusting for seroreversion using Bayesian models, we get attack rates of SARS-CoV-2, which estimates the proportion of population infected by the virus since the beginning of pandemic.
+
+3.      There's some differences among all those different quantitative measurements, and also they have different public health inference. Future researchers should be cautious when making references to those different measurements.
 
 <br>
 
@@ -348,7 +350,6 @@ Besides of serology test results and demographic data, CBS has linked the admini
 Notes: Current ver of APL has completed very limited data linkage, which only includes PCR test results/time and vaccination time. The paragraph briefly describe the data linkage for three datasets, however for now we do not need those variables from linked administrative data.
 --->
 ```
-
 A short paragraph about weighting: Our analysis is based on individual level. As we are calculating measurements at a monthly scale, samples sampled at different months were unweighted as they contributed independently to each month's point prevalence estimates. While in all of those three dataset, it's possible to have one individual being sampled multiple times within the same month, in this case we applied weights to each individual according to the number of samples they have in the same month.
 
 {{< pagebreak >}}
