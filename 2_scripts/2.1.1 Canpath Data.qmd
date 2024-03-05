@@ -1,0 +1,35 @@
+---
+title: "2.1.1 Canpath Data Check"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+The aim of this qmd file is cleaning the Canpath data. Those code is unnecessary to publish with the project.
+
+## Running Code
+
+## Load packages
+```{r}
+library(dplyr)         # Data management
+library(zoo)           # year-month format
+```
+
+## Load the dataset
+```{r}
+# The Questionnaire data
+Canpath_qx <- read.csv("../1_data/private/CANPATH/DAO-543759_ResearcherDataset_Qx_96014par_1125var.csv")
+
+# The linked administrative data
+Canpath_admin <- read.csv("../1_data/private/CANPATH/DAO-543759_ResearcherDataset_Serology_Admin_25727par.csv")
+
+# The serology data
+Canpath_ser <- read.csv("../1_data/private/CANPATH/DAO-543759_ResearcherDataset_Serology_Results_74503par.csv")
+```
+
+
+
+
