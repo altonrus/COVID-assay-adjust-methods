@@ -378,7 +378,7 @@ lrtest(mnlm03.b_sex, mnlm03.b)
 
 **Conclusion**: 1.Adjusting for age and gender does not improve the model fit significantly. 2.Adjusting for gender only will have limited improvement on model fit. Not adjusting for age & sex is okay, it will allow us to utilize more neg ref data, as age & sex info is usually missing in those data.
 
-##============ Part III. Apply Model to CBS Data ================
+##============ Part III-1 Apply Model to CBS Data ================
 
 ```{r}
 # Add log roche_n to the CBS data
@@ -407,7 +407,6 @@ CBSs2<-cbind.data.frame(select(CBS, pid, sampledate, sex, age, fsa,
                         province, roche_n, abbott_n, roche_s, log_roche_n),
                  CBS_prob_r2)
 ```
-
 
 #### Make by Region Plots
 
@@ -527,7 +526,6 @@ tb_all2<-rbind.data.frame(tb_bc, tb_ab, tb_skm, tb_on, tb_at)
 tb_all2<-tb_all2[!is.na(tb_all2$samplemonth),]
 ```
 
-
 #### Make plots by region
 
 ```{r}
@@ -561,20 +559,116 @@ p02<-tb_melt2 %>%
 p02 + facet_wrap(~region)
 ```
 
-## Part IV Apply model to APL data
+## Part III-2 Apply model to APL data
 
 ```{r}
 summary(RFD4682_e$N)
 # The codebook does not specify what types of anti-N assay is applied, given the number we assume they are using Abbott anti-N assay (small numbers)
 ```
 
-## Part V Apply model to CANPATH data
+## Part III-3 Apply model to CANPATH data
 
 ```{r}
 Canpath <- read.csv("~/COVID-assay-adjust-methods/1_data/private/CANPATH/DAO-543759_ResearcherDataset_Serology_Results_74503par.csv")
 Canpath_all <- read.csv("~/COVID-assay-adjust-methods/1_data/private/CANPATH/DAO-543759_ResearcherDataset_Qx_96014par_1125var.csv")
 
 table(Canpath$C1_CITF_ASSAY_ID)
-
-
 ```
+
+## Part IV Misc Analysis
+
+1. About the age dist in training data and CBS: The difference on age distribution might be a potential problem. Generally speaking, blood donors (CBS, FR-Leon data) is relatively older, while Covid-19 convalescent patients are younger.
+```{r}
+# The FR-Leon data
+summary(dta_all[dta_all$study==1,]$age) # mean=46, median = 48
+hist(dta_all[dta_all$study==1,]$age)
+
+# UK - Convalscent Pts
+summary(dta_all[dta_all$study==6,]$age) # mean=44.54, median = 47
+hist(dta_all[dta_all$study==6,]$age, breaks = 25) # two waves?
+
+# overall dist (FR-Leon + UK)
+summary(dta_all[dta_all$study %in% c(1,6),]$age) # mean=46, median = 48
+hist(dta_all[dta_all$study %in% c(1,6),]$age, breaks = 25)
+# overall it looks good
+
+# CBS
+summary(CBSs$age) # one ourlier = 168, who is this??
+hist(CBSs$age[CBSs$age<100])
+
+# CBS by anti-N pos
+hist(CBSs$age[CBSs$age<100 & 
+              CBSs$roche_n>1])
+
+# KS test: UK+FR-Leon vs CBS
+ks.test(dta_all[dta_all$study %in% c(1,6),]$age, 
+        CBSs$age[CBSs$age<100])
+# as KS test suggests, the distribution of age btw two groups is different
+```
+```{r}
+# create a sampling prob variable, based on the age dist in CBS
+CBSs$age_group<-CBS$age_group
+
+tb1<-as.data.frame(prop.table(table(CBS$age_group)))
+colnames(tb1)<-c("age_group","age_w")
+tb1$n_sp<-round(tb1$age_w*650, digits = 0)
+
+dta_all$age_group[dta_all$age<20 & dta_all$age>0]<-"10-19 years"
+dta_all$age_group[dta_all$age<30 & dta_all$age>20]<-"20-29 years"
+dta_all$age_group[dta_all$age<40 & dta_all$age>30]<-"30-39 years"
+dta_all$age_group[dta_all$age<50 & dta_all$age>40]<-"40-49 years"
+dta_all$age_group[dta_all$age<60 & dta_all$age>50]<-"50-59 years"
+dta_all$age_group[dta_all$age<70 & dta_all$age>60]<-"60-69 years"
+dta_all$age_group[dta_all$age<80 & dta_all$age>70]<-"70-79 years"
+dta_all$age_group[dta_all$age>80]<-"80+ years"
+table(dta_all$age_group, useNA = 'ifany')
+
+dta_all<-merge(dta_all, tb1, by="age_group", all.x=T, all.y=F)
+```
+
+#### Create a sample based on the sampling prob:
+```{r}
+# a simple prob sampling:
+set.seed(2048)
+dta_sp<-slice_sample(dta_all[!is.na(dta_all$age_w),], n=650,
+             weight_by = dta_all[!is.na(dta_all$age_w),]$age_w,
+             replace = FALSE)
+
+# how does age looks like in the sample?
+hist(dta_sp$age)
+
+# Stratified sampling (Alternative):
+dta1<-dta_all[!is.na(dta_all$age_group == "10-19 years"),] %>%
+  slice_sample(n=tb1$n_sp[2], replace = FALSE)
+dta2<-dta_all[!is.na(dta_all$age_group == "20-29 years"),] %>%
+  slice_sample(n=tb1$n_sp[3], replace = FALSE)
+dta3<-dta_all[!is.na(dta_all$age_group == "30-39 years"),] %>%
+  slice_sample(n=tb1$n_sp[4], replace = FALSE)
+dta4<-dta_all[!is.na(dta_all$age_group == "40-49 years"),] %>%
+  slice_sample(n=tb1$n_sp[5], replace = FALSE)
+dta5<-dta_all[!is.na(dta_all$age_group == "50-59 years"),] %>%
+  slice_sample(n=tb1$n_sp[6], replace = FALSE)
+dta6<-dta_all[!is.na(dta_all$age_group == "60-69 years"),] %>%
+  slice_sample(n=tb1$n_sp[7], replace = FALSE)
+dta7<-dta_all[!is.na(dta_all$age_group == "70-79 years"),] %>%
+  slice_sample(n=tb1$n_sp[8], replace = FALSE)
+dta8<-dta_all[!is.na(dta_all$age_group == "80+ years"),] %>%
+  slice_sample(n=sum(tb1$n_sp[9:10]), replace = FALSE)
+dta_sp<-rbind.data.frame(dta1, dta2, dta3, dta4, dta5,
+                         dta6, dta7, dta8)
+rm(dta1, dta2, dta3, dta4, dta5, dta6, dta7, dta8)
+
+# KS test
+ks.test(dta_sp$age, CBSs$age[CBSs$age<100])
+```
+
+## Regression on sampled data:
+```{r}
+mnlm03.s<-multinom(relevel(as.factor(time_pso), ref = "never_inf") ~ log_roche_n + 
+                     age + gender, 
+                 data = dta_sp,
+                 weights = sample_wt)
+summary(mnlm03.s)
+```
+
+

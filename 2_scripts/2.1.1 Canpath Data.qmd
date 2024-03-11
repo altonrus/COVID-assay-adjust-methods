@@ -250,6 +250,17 @@ m2 %>%
   select(region, assay_id) %>%
   group_by(region, assay_id) %>%
   summarise(Freq=n())
+
+# clean the data var
+m2$date_col<-as.Date(m2$date_col, format = "%Y-%m-%d")
+m2$date_asy<-as.Date(m2$date_asy, format = "%Y-%m-%d")
+
+# when those assay was applied?
+m2 %>%
+  group_by(region) %>%
+  summarise(Freq=n(),
+            tcol_min = min(date_col, na.rm=T),
+            tcol_max = max(date_col, na.rm=T))
 ```
 ## save the data
 ```{r}
