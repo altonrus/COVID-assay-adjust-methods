@@ -30,6 +30,9 @@ Canpath_admin <- read.csv("../1_data/private/CANPATH/DAO-543759_ResearcherDatase
 
 # The serology data
 Canpath_ser <- read.csv("../1_data/private/CANPATH/DAO-543759_ResearcherDataset_Serology_Results_74503par.csv")
+
+# The new MTP Qx subset
+Canpath_qx_MTP<-read.csv("../1_data/private/CANPATH/DAO-543759_ResearcherDataset_Qx_1114par_1127varMTP.csv")
 ```
 
 ##=============== Part.I Clean, merge and create a small subset===============##
@@ -105,7 +108,7 @@ table(Canpath_ser$C1_SAMPLE_RESULTS_DESCRIPTION, useNA = 'ifany')
 
 -   All for three: pid (participants ID) and sid (sample ID)
 ```{r}
-# sample_ID
+# sample_ID: only available in admin and ser data
 
 # Sample ID
 # admin data
@@ -118,7 +121,7 @@ summary(Canpath_ser$C1_ADM_SPECIMEN_ID)
 table(is.na(Canpath_ser$C1_ADM_SPECIMEN_ID), useNA = 'ifany')  # N=13632 missing, be careful
 length(unique(Canpath_ser$C1_ADM_SPECIMEN_ID))                 # not all non-missing has unique sample ID
 
-# Research ID
+# Research ID: invididual ID
 # qx data:
 summary(Canpath_qx$ResearcherID)                        # N=96014, no missing
 table(is.na(Canpath_qx$ResearcherID), useNA = 'ifany')
@@ -131,12 +134,12 @@ length(unique(Canpath_admin$ResearcherID))              # N=25724, duplicates
 
   ## find duplicates
   n_admin <- data.frame(table(Canpath_admin$ResearcherID))
-  n_admin[n_admin$Freq > 1,]          # 3 duplicates, sample pp with two samples (diff sample ID)
+  n_admin[n_admin$Freq > 1,]          # 3 duplicates, one pp with two samples (diff sample ID), collected on diff day. Drop the first one
 
 # ser data
 summary(Canpath_ser$ResearcherID)                      # N=74503, no missing
 table(is.na(Canpath_ser$ResearcherID), useNA = 'ifany')
-length(unique(Canpath_ser$ResearcherID))               # N=25975, duplicates
+length(unique(Canpath_ser$ResearcherID))               # N=25975, duplicates due to same sample tested for multiple assays
 ```
 #### 1.2 Merge three data
 ```{r}
@@ -144,34 +147,100 @@ length(unique(Canpath_ser$ResearcherID))               # N=25975, duplicates
 # qx subset:
 qx_s<-select(Canpath_qx, ResearcherID, C_ADM_STUDY_DATASET, C_SDC_AGE, C_SDC_SEX,
              C_ADM_FSA)
+
+# don't forget MTP subset
+qx_s_mtp<-select(Canpath_qx_MTP, ResearcherID, C_ADM_STUDY_ID, 
+             C_SDC_AGE, C_SDC_SEX, C_ADM_FSA,
+             C1_SDC_AGE, C1_SDC_SEX, C1_ADM_FSA)
 # apply shorter var names:
 colnames(qx_s)<-c("rid", "study_id", "age", "sex", "fsa")
+colnames(qx_s_mtp)<-c("rid", "study_id", "age", "sex", "fsa", 
+                      "age1", "sex1", "fsa1")
+
+# identify those missed from original data:
+qx_s_mtp[qx_s_mtp$rid %in% qx_s$rid,] # not missed, N=699
+qx_mtpmiss<-qx_s_mtp[!(qx_s_mtp$rid %in% qx_s$rid),] # missed, N=445
+
+
+# rbind those two into one:
+qx_s<-rbind.data.frame(qx_s, 
+                       select(qx_mtpmiss, -c("age1", "sex1", "fsa1")))
+
+# clean study_id
+qx_s$study_id[qx_s$study_id=='5']<-"MTP"
+table(qx_s$study_id, useNA = 'ifany')
+
 
 # admin subset
 admin_s<-select(Canpath_admin, ResearcherID, C1_SAMPLE_ID,
                 C1_ADM_COHORT_ID, C1_ADM_COLLECT_DATE, C1_SAMPLE_TYPE, 
                 C1_SAMPLE_PROCESS_DATE)
-colnames(admin_s)<-c("rid", "sid", "cohort_id", "date_col", "stype", "date_pro")
+colnames(admin_s)<-c("rid", "sid_admin", "cohort_id", "date_col", "stype", "date_pro")
 
 # ser data, use anti-N only
 ser_s<-select(Canpath_ser[Canpath_ser$C1_CITF_ASSAY_ID %in% c("10010-00", "20010-03"),],
               ResearcherID, C1_ADM_SPECIMEN_ID, C1_CITF_ASSAY_ID, C1_SAMPLE_DATE_ASSAY_RUN,
               C1_SAMPLE_RESULT, C1_SAMPLE_RESULTS_DESCRIPTION)
-colnames(ser_s)<-c("rid", "sid", "assay_id", "date_asy", "result", "pos")
+colnames(ser_s)<-c("rid", "sid_ser", "assay_id", "date_asy", "result", "pos")
+
+table(ser_s$rid %in% qx_mtpmiss$rid, useNA = 'ifany')
+table(admin_s$rid %in% qx_mtpmiss$rid, useNA = 'ifany')
 
 # reshape the subset
 # ser_sw<-reshape(ser_s, idvar = "sid", timevar = "assay_id", direction = "wide")
 # reshape is unnecessary
 ```
+#### Data quality check of those small dataset
+```{r}
+# admin_s: missing
+table(is.na(admin_s$rid), useNA = 'ifany')     # rid no missing, not all unique (3 duplicates)
+# remove duplicates: drop the earliest sample
+admin_s<-admin_s[!admin_s$sid %in% c("DB0006218", "DB0009025", "DB0009310"),]
+
+table(is.na(admin_s$sid), useNA = 'ifany')     # sid 8349 missing
+length(unique(admin_s$sid[!is.na(admin_s$sid)])) # non-missing sids all unique
+
+# ser_s (only 2 anti-N assays): missing
+table(is.na(ser_s$rid), useNA = 'ifany')      # rid no missing
+length(unique(ser_s$rid))                     # duplicates exists
+
+  n_ser <- data.frame(table(ser_s$rid))
+  n_ser[n_ser$Freq > 1,]
+# some sample has been tested multiple times by the same assay
+# none of those testing has been result in inconsistency of anti-N positivity
+
+# in ser_s, see where rid is duplicated: all used Mount Sinai Hosp Assay (anti-N)
+ser_rid_dup<-ser_s[ser_s$rid %in% n_ser[n_ser$Freq > 1,]$Var1, ]
+table(ser_s[ser_s$rid %in% n_ser[n_ser$Freq > 1,]$Var1, ]$assay_id, useNA='ifany')
+
+# need to deduplicate ser_s, only keep one of duplicated records
+ser_rid_dup$id<-c(1:404)
+ser_rid_dup %>%
+  distinct(rid, .keep_all=TRUE) # N=163 （404-163 = 241 de-duplicated)
+
+ser_s<-ser_s %>%
+  distinct(rid, .keep_all=TRUE) # N=25839, number matches
+```
+
+
+
 ```{r}
 # merge those small subsets
-m1<-merge(admin_s, ser_s[!is.na(ser_s$rid) & !is.na(ser_s$sid),],
-          by = c("rid", "sid"), all.x = F, all.y = T)
+m1<-merge(admin_s, ser_s,
+          by = c("rid"), all.x = F, all.y = T)
 m2<-merge(m1, qx_s, by='rid', all.x = T, all.y = F)
 
+# sid match
+m2$sid_match[!is.na(m2$sid_admin) & !is.na(m2$sid_ser) &
+             m2$sid_admin == m2$sid_ser]<-"match"
+m2$sid_match[!is.na(m2$sid_admin) & !is.na(m2$sid_ser) &
+             m2$sid_admin != m2$sid_ser]<-"mismatch"
+m2$sid_match[!is.na(m2$sid_admin) & is.na(m2$sid_ser)]<-"ser miss"
+m2$sid_match[is.na(m2$sid_admin) & !is.na(m2$sid_ser)]<-"admin miss"
+m2$sid_match[is.na(m2$sid_admin) & is.na(m2$sid_ser)]<-"all miss"
+table(m2$sid_match, useNA = 'ifany')
 
-ser_s %>%
-  .[!is.na(.$rid) & is.na(.$sid),]
+# work on this part later #
 
 # is cohort_id same as study_id?
 table(m2$cohort_id, m2$study_id, useNA = 'ifany')
@@ -268,4 +337,23 @@ Canpaths<-m2
 rm(m1, m2, n_admin, ser_sw)
 save(Canpaths, file = "../1_data/private/CANPATH/Canpaths.RData")
 ```
+
+##===================== Part.II Estimate Seroprevalence =================
+
+**Notes:** Seroprevalence estimation requires individual analysis and a little bit weighting. Those who has been sampled multiple times should be down-weighted properly. Those who are sampled multiple times in different months will not be down-weighted.
+
+M.Knight's data cleaning strategy is much more straightforward, as he only need to locate the participants who provided sero data, so matching on researcherID makes senses. In our case we need to treat sero data more carefully, as in Canpath sero data, one individual could provide multiple samples, and those samples were tested by multiple assays (Abbott N/S, Mount Sinai Hosp N/S/S-RBD). 
+
+```{r}
+
+```
+
+## 
+
+
+
+
+
+
+
 
