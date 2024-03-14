@@ -11,6 +11,7 @@ Quarto enables you to weave together content and executable code into a finished
 ## Running Code
 
 ## Load dataset
+
 ```{r}
 # The CBS Ab subset data
 load(file = "../1_data/private/CBS_Ab.RData")
@@ -18,13 +19,15 @@ load(file = "../1_data/private/RFD4682e.RData")
 ```
 
 ## Load necc paks
+
 ```{r}
 library(dplyr)         # Data management
 library(reshape2)      # for melt() function
 library(ggplot2)        # ggplot
 library(zoo)           # year-month format
 ```
-# ============= Part I. The Changing of Anti-N Pos APL ===============#
+
+# ============= Part I. The Changing of Anti-N Pos APL ===============
 
 #### Calculate positivity directly
 
@@ -58,6 +61,7 @@ tb1 %>%
 ```
 
 #### Apply ggplot, plot two together
+
 ```{r}
 APL_melt<-melt(select(tb1, Col_Month, prop.n, prop.n_RG), id.vars = "Col_Month")
 
@@ -68,9 +72,10 @@ APL_melt %>%
   theme_bw()
 ```
 
-# ============= Part II. The Changing of Anti-N Pos Overtime ===============#
+# ============= Part II. The Changing of Anti-N Pos Overtime ===============
 
 #### Anti-N in CBS data (Roche)
+
 ```{r}
 CBS_Ab %>%
   with(summary(roche_n))
@@ -109,7 +114,9 @@ CBS_Ab %>%
   .[is.na(.$abbott_n) & !is.na(.$roche_n), ] %>%
   with(summary(sampledate))
 ```
+
 ## Making result table for ggplot
+
 ```{r}
 # prepare melt data
 tb1<-CBS_Ab%>%
@@ -137,6 +144,7 @@ tb1$prop.n_RG_l<- (tb1$prop.n+1-1)/(1+0.906-1)
 ```
 
 #### Apply ggplot, plot two together
+
 ```{r}
 CBS_melt<-melt(select(tb1, month_year, prop.n, prop.n_RG_h, prop.n_RG_l), id.vars = "month_year")
 
@@ -151,6 +159,7 @@ CBS_melt %>%
 ```
 
 #### Plot CBS and APL all together
+
 ```{r}
 # Create a merged data
 APL_melt$data<-rep("APL", length(APL_melt$Col_Month))
@@ -178,7 +187,8 @@ p01$labels$colour<-"Adjustment"
 p01
 ```
 
-## What's the reason of the gap? 
+## What's the reason of the gap?
+
 ```{r}
 # The gap between adjusted and unadjused - Rogen-Gladen equation is the cause
 # In our case, the sensitivity is where most variance come from. Specificity is good over time, and we can used the number published by the manufacturer (Roche & Abbott). Since sens is imperfect (0.8--1.0) and specificity is mostly 100% trustworthy (~1.0), the R-G equation and be simplified as:
@@ -188,7 +198,6 @@ p01
 
 # Between data (APL, CBS, CANPATH) diff is not the major focus of this study, Yuan's paper will focus on those. For this paper, the major focus should be the difference between adjusting methods
 ```
-
 
 ##==================== Part III. Anti-S Positivity Overtime ================##
 
@@ -209,7 +218,9 @@ summary(CBS_Ab$log_roche_s)
 table(CBS_Ab$interp_roche_s, useNA = 'ifany')
 # Majority (87.50%) were test positive
 ```
+
 #### Calculate Anti-S Positivity
+
 ```{r}
 # prepare melt data
 tb1<-CBS_Ab%>%
@@ -243,6 +254,7 @@ p02<-CBS_melt2 %>%
 p02$labels$colour<-"Adjustment"
 p02
 ```
+
 #### Add additional COI 0.8 and 15
 
 ```{r}
@@ -255,7 +267,9 @@ table(CBS_Ab$interp_roche_s15, useNA = 'ifany')
 
 # elevating COI from 0.4 to 15 increase N(-) by 2000
 ```
-#### Plot 03:  0.4 and 15 COI together in one single plot
+
+#### Plot 03: 0.4 and 15 COI together in one single plot
+
 ```{r}
 # Creating the N_prop data
 tb1<-CBS_Ab%>%
@@ -294,7 +308,9 @@ p03<-CBS_melt3 %>%
 p03$labels$colour<-"COI"
 p03
 ```
+
 #### Add RG-adjustment to the plot, using the sens and spec related to detection of virus neutrolization, rather than detection of presence of Antibodies.
+
 ```{r}
 # N and proportions
 tb1<-CBS_Ab%>%
@@ -337,6 +353,7 @@ CBS_melt4$COI[CBS_melt4$variable %in% c("prop.s0.8", "prop.s0.8_RG")]<-"0.8"
 CBS_melt4$COI[CBS_melt4$variable %in% c("prop.s15", "prop.s15_RG")]<-"15"
 table(CBS_melt4$variable, CBS_melt4$COI)
 ```
+
 ```{r}
 ## ggplot using melted data
 p04<-CBS_melt4 %>%
@@ -353,4 +370,3 @@ p04
 
 # plot COI = 0.8/15 seperately
 ```
-

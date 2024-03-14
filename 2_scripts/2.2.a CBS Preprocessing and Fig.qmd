@@ -1,5 +1,5 @@
 ---
-title: "2.2.a CBS Preprocessing and Monthly Positivity Figures"
+title: "2.2.a Preprocessing and Monthly Positivity Figures"
 format: html
 editor: visual
 author: J.Chen (let me know if you run into any troubles with those codes)
@@ -9,9 +9,13 @@ author: J.Chen (let me know if you run into any troubles with those codes)
 
 This qmd file is to share the code of CBS data cleaning and monthly test positivity figures with Y.Yu, who will apply Bayesian models to adjust for waning sensitivity and specificity.
 
+For APL
+For Canpath cleaning & pre-processing, please refer to "2.1.1 Canpath Data.qmd"
+
 ## Running Code
 
 ## Load dataset
+
 ```{r}
 # The CBS Data, extracted using "CITF_CBS_desc_stats.Rmd"
 load(file = "../1_data/private/CBS.RData")
@@ -23,6 +27,7 @@ load(file = "../1_data/private/CBS.RData")
 ```
 
 ## Load necessary paks
+
 ```{r}
 library(dplyr)         # Data management
 library(reshape2)      # for melt() function
@@ -31,15 +36,21 @@ library(zoo)           # for year-month format
 ```
 
 ## Load dataset
+
 ```{r}
 # CBS
 load(file = "../1_data/private/CBS.RData")
-```
 
+# Canpath - clean ver
+load(file = "../1_data/private/CANPATH/Canpaths.RData")
+# load from jmy foler
+# load(file = "~/../../jmy/CANPATH/Canpaths.RData")
+```
 
 ##==================== Part I. Preprocessing Data ============================##
 
 #### 1.1 CBS data
+
 ```{r}
 # CBS data is clean, no need for preprocessing
 
@@ -66,18 +77,21 @@ table(CBS$samplemonth, useNA = 'ifany')
 ```
 
 #### 1.2 APL data
+
 ```{r}
 # APL data needs additional cleaning, will update this part soon!
 ```
 
 #### 1.3 Canpath data
-```{r}
-# Canpath data needs additional cleaning, will update this part soon!
-```
+
+**Notes:** In Canpath data we've removed three individuals who provided multiple samples, and several samples tested for multiple times. Those samples tested for multiple times did not result in inconsistent interpretation on assay results. See "2.1.1 Canpath Date.Rmd" for more details on data cleaning. 
+
+In Canpath data all rid (researcherID, participant ID) and sid (sample ID) are unique and 1-to-1, though some sid is missing.
 
 ##==================== Part II. Test Positivity & RG =========================##
 
 #### 2.1 CBS data
+
 ```{r}
 # prepare melt data
 tb1<-CBS%>%
@@ -110,19 +124,25 @@ CBS_pr$data<-rep("CBS", length(CBS_pr$samplemonth))
 ## drop useless intermediate tables
 rm(tb1, tb2, tb3)
 ```
-We only applied the sens & spec from third-party studies, instead of the numbers published online by Roche. 
+
+We only applied the sens & spec from third-party studies, instead of the numbers published online by Roche.
 
 #### 2.2 APL data
+
+**Notes:** Seroprevalence estimation requires individual analysis and a little bit weighting. Those who has been sampled multiple times should be down-weighted properly. Those who are sampled multiple times in different months will not be down-weighted.
+
 ```{r}
 
 ```
 
 #### 2.3 Canpath data
+
 ```{r}
 
 ```
 
 #### Merge all three into one
+
 ```{r}
 
 
@@ -130,9 +150,10 @@ We only applied the sens & spec from third-party studies, instead of the numbers
 save(CBS_pr, file="../3_intermediate/CBS_pr.RData" )
 ```
 
-##==================== Part III.  Figures =========================##
+##==================== Part III. Figures =========================##
 
 #### 3.1 CBS: Make plots by region
+
 ```{r}
 # Reshape meltted data
 CBS_melt<-reshape2::melt(select(CBS_pr, samplemonth, region,
@@ -150,13 +171,3 @@ p01<-CBS_melt %>%
 
 p01 + facet_wrap(~region)
 ```
-
-
-
-
-
-
-
-
-
-
