@@ -137,8 +137,75 @@ We only applied the sens & spec from third-party studies, instead of the numbers
 
 #### 2.3 Canpath data
 
-```{r}
+**Notes:** In Canpath data we don't have to worry about weighting, as one people has been sampled only once, then tested by multiple asays (either Gingras x3 or Abbott x2)
 
+##### 2.3.1 Pre-process Canpath data
+```{r}
+Canpaths %>%
+  select(region, assay_id) %>%
+  group_by(region, assay_id) %>%
+  summarise(Freq=n())
+
+# remove 9 AB cases with Gingras abti-N (Mount Sinai Hosp)
+Canpaths<-Canpaths %>%
+  .[!(.$region=="Alberta" & .$assay_id=="10010-00"),]
+
+# remove 2 BC cases with Abbott anti-N
+Canpaths<-Canpaths %>%
+  .[!(.$region=="BC" & .$assay_id=="20010-03"),]
+
+# create samplemonth var
+Canpaths$samplemonth<-as.yearmon(Canpaths$date_col)
+table(Canpaths$samplemonth, useNA = 'ifany')
+
+# see samplemonth by assay
+Canpaths %>%
+  .[!is.na(.$region),] %>%
+  select(samplemonth, assay_id) %>%
+  group_by(samplemonth, assay_id) %>%
+  summarise(Freq=n())
+```
+
+
+```{r}
+# create sero-prevalance tab
+tb1<-Canpaths%>%
+  group_by(samplemonth, region, .add=TRUE) %>%
+  summarise(n = n(), )
+
+tb2<-Canpaths[Canpaths$pos==1,] %>%
+  group_by(samplemonth, region, .add=TRUE) %>%
+  summarise(n.pos = n(), )
+
+tb3<-merge(tb1, tb2, by = c("samplemonth", "region"), all.x = T, all.y = F)
+tb3$prop.n<-tb3$n.pos/tb3$n
+tb3$prop.n[is.na(tb3$prop.n)]<-0
+
+Canpaths_pr<-tb3[!is.na(tb3$region) &
+                 !is.na(tb3$samplemonth),]
+
+# Third-party sens & spec: Abbott-N
+# Sen=92.7%, spec = 99.9% 
+# Source: https://assets.publishing.service.gov.uk/media/5f05887ad3bf7f2be6e02161/Evaluation__of_sensitivity_and_specificity_of_4_commercially_available_SARS-CoV-2_antibody_immunoassays.pdf
+Canpaths_pr$prop.n_RG<-rep(NA, 38)
+Canpaths_pr[Canpaths_pr$region=="Alberta",]$prop.n_RG<- 
+  (Canpaths_pr[Canpaths_pr$region=="Alberta",]$prop.n+0.999-1)/(0.999+0.927-1)
+
+# Third-party sens & spec: Mount Sinai Hosp (Gingras), from T.Murphy
+# Sen=83.5%, spec = 96.4%
+Canpaths_pr[!Canpaths_pr$region=="Alberta",]$prop.n_RG<- 
+  (Canpaths_pr[!Canpaths_pr$region=="Alberta",]$prop.n+0.999-1)/(0.999+0.927-1)
+
+## According to Yuan's request, add sens & spec to all the obs
+Canpaths_pr$sens[Canpaths_pr$region=="Alberta"]<-0.927
+Canpaths_pr$sens[!Canpaths_pr$region=="Alberta"]<-0.835
+Canpaths_pr$spec[Canpaths_pr$region=="Alberta"]<-0.999
+Canpaths_pr$spec[!Canpaths_pr$region=="Alberta"]<-0.964
+
+Canpaths_pr$data<-rep("Canpaths", length(Canpaths_pr$samplemonth))
+
+## drop useless intermediate tables
+rm(tb1, tb2, tb3)
 ```
 
 #### Merge all three into one
@@ -165,9 +232,30 @@ CBS_melt<-reshape2::melt(select(CBS_pr, samplemonth, region,
 p01<-CBS_melt %>%
   ggplot(aes(x=samplemonth, y=prop, group=Adj, colour=Adj)) +
   geom_point(aes(colour=Adj)) +
-  geom_smooth(method = "loess", aes(colour=Adj), se=FALSE) +
-#  geom_line(aes(colour=Adj))  + #non-smooth curve
+#  geom_smooth(method = "loess", aes(colour=Adj), se=FALSE) +
+  geom_line(aes(colour=Adj))  + #non-smooth curve
   theme_bw() 
 
 p01 + facet_wrap(~region)
+```
+
+#### 3.2 Canpath: make plots by region
+```{r}
+# Reshape meltted data
+Canpaths_melt<-reshape2::melt(select(Canpaths_pr, samplemonth, region,
+                                       prop.n, prop.n_RG), 
+                        id.vars = c("samplemonth", "region"),
+                        variable.name = "Adj",
+                        value.name = "prop")
+
+p02<-Canpaths_melt %>%
+  ggplot(aes(x=samplemonth, y=prop, group=Adj, colour=Adj)) +
+  geom_point(aes(colour=Adj)) +
+#  geom_smooth(method = "loess", aes(colour=Adj), se=FALSE) +
+  geom_line(aes(colour=Adj))  + 
+  theme_bw()+
+  scale_y_continuous(limits = c(0,1))
+
+p02 + facet_wrap(~region)
+
 ```

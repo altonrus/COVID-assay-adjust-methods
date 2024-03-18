@@ -189,6 +189,7 @@ colnames(ser_s)<-c("rid", "sid_ser", "assay_id", "date_asy", "result", "pos")
 table(ser_s$rid %in% qx_mtpmiss$rid, useNA = 'ifany')
 table(admin_s$rid %in% qx_mtpmiss$rid, useNA = 'ifany')
 ```
+
 #### Data quality check of those small dataset
 ```{r}
 # admin_s: missing
@@ -353,8 +354,174 @@ m2 %>%
             tcol_min = min(date_col, na.rm=T),
             tcol_max = max(date_col, na.rm=T))
 ```
+#### 1.3 Add additional variables
+```{r}
+# add race variable: the coding on race is a bit messy in Canpath
+# 14 variables were used to indicate diff racial minorities
+# The cleaning code is provided by M.Knight
+m2<-merge(m2, select(Canpath_qx, "ResearcherID",
+          "C1_SDC_EB_ARAB","C1_SDC_EB_BLACK","C1_SDC_EB_CHINESE",
+         "C1_SDC_EB_FILIPINO","C1_SDC_EB_JAPANESE",
+         "C1_SDC_EB_KOREAN","C1_SDC_EB_LATIN","C1_SDC_EB_S_ASIAN",
+         "C1_SDC_EB_SE_ASIAN","C1_SDC_EB_W_ASIAN","C1_SDC_EB_WHITE",
+         "C1_SDC_EB_OTHER", "C1_SDC_EB_OTHER_OTSP","C1_SDC_EB_CA"),
+         by.x = 'rid', by.y ="ResearcherID", 
+         all.x = T, all.y = F
+  
+)
 
-#### 1.3 save the data
+# Reorder the variables to fit Matthew's code:
+m3<-cbind.data.frame(m2[,1:8], m2[,17:30], m2[,9:16])
+m2<-m3
+rm(m3)
+
+# If possible, add a short para in the discussion section explaining why we can not categorize the indigenous people. Consult Yuan's email for more detail.
+```
+
+```{r}
+# define whites and minorities:
+
+#Racialized minorities - no indigenous responses included (applied later in for loop)
+rm_indn<-c("Afro Latino Caribbean decent","East Indian descent, born in Kenya","Indo-Caribbean","white/asian",
+           "SE Asian (Taiwanese)","i am South African, I carry in my veins European, African, Asian and indigenous Southern Afircan",
+           "West Indian from Guyana","Guyanese - West Indian","South American","caucasian - european, indian, iraqi",
+           "Ugandian of South Asian heritage","Trinidadian","White, Chinese, West Asian", "Japanese/Irish","Chinese, Indian, English",
+           "East Indian born in Guyana","West-Indian","South African of mixed races","half Japanese half White",
+           "Armenian","South Asian from East Africa","Indo Caribbean","Japanese and European","Black/white",
+           "Mixed race Chinese-Guyanese-White","East Asian","west indian",
+           "White, Indigeneous, Latin-American","Indian born in the Caribbean.",
+           "White and Khoisan","European Hispanic","Armenian mother, Irish father, but born in England",
+           "Persian","Guyanese,south asian descent","Mixed heritage (white and black)","Caribbean, Mixed Race",
+           "Assyrian","Caucasian African","WEST INDIAN/CHINESE/","Latino and European","Of Indian decent - Born in Caribbean",
+           "White/Southeast Asian","mixed european/chinese","Indo-caribbean","Mixed Race (Black, White, Hispanic,Soth Asian)",
+           "South Asian/ Mixed South african","Canadian, German & Caribbean","Black Canadian",
+           "East Indian","Mixed European & Southeast Asian","Je suis Afro Latino-AmÃ\u0083Â\u0083Ã\u0082Â©ricain","latino-amÃ\u0083Â\u0083Ã\u0082Â©ricain occidental",
+           "Nord africain","Berbere","Berbere (Afrique du nord)","Berbere Nord Africain","amazigh","maghrebine","Nord-Africain",
+           "Juif marocain","Nord africaine","90% white 10%Jewish-Arab","Canadian and Afrikaans",
+           "mixed with Jamaican", "guianese of east indian descent",
+           "caribbean chinese", "chinese and french background and other",
+           "arabe-africaine", "berbère","persian",
+           "indo-european","colombienne","japanese & swedish",
+           "east indian","middle east",
+           "armenian",
+           "north african","south american, african, chinese","middle eastern",
+           "middle east, and central europe","cherokee",
+           "irish and guyanese","african","zimbawayan",
+           "dutch indonesian",
+           "trinidadian","south america - biracial",
+           "punjabi","west indian of east indian descent",
+           "mixed race - mother part black/father white caucasian","jamaican",
+           "canadian chinese","cambodgienne","africain","asian","mauricien",
+           "taiwanese","middle east/ persion",
+           "1/4 middle eastern (syria which is now lebanon) from paternal grandfather",
+           "mixed afghan and english","tunisien",
+           "jamaican.","west  indian","zoroastrian (ancient persian ancestry)",
+           "white/west asian","kabyle (berbère) d'afrique du nord","white mexican jewish")
+
+#Racialized minorities - indigenous responses included
+rm_indy<-c("Metis/European descent","White and aboriginal","Metis","Indigenous / European","Metis French Canadian",
+           "Metis Canadian","Blanche ascendance micmak","Metis ancestry","white a bit of indigenous","métis",
+           "french metis", "30% indigenous metis/70% white","metis",
+           "culturally white, 3/16 aboriginal","mik'maw","inuit / european", "autochtone",
+           rm_indn)
+
+#White or Caucasian
+w<-c("white newfoundlander","White British",
+     "White passing","Caucasian","White - British Decent",
+     "White, British descent","Caucasian white", "White - Canadian Irish descent",
+     "white french canadian", "Caucasian female","White - Canadian","caucasian","White Canadian Scottish parents","Canadian Caucasian","White British Descent",
+     "Canadian - White - 4 generations",
+     "white, British descent","CAUCASIAN",
+     "Caucasian - European descent","Canadian white Caucasian","white Canadian" ,
+     "Canadian White","White Franco Ontarian","Caucasian Canadian",
+     "white  Canadian       North American", "White Canadian born","White Canadian, Parents of Ukrainian and French background",
+     "White Anglo-Saxon","White/Cdn born/European grandparents",
+     "Canadian, white","White caucasian","white not Europe.",
+     "Hebrew (Jewish) Canadian white","White (Canadian)","White","White from Canada",
+     "White  English decent=","White bilingual Canadian - Family from Quebec","white canadian","White  Canadian",
+     "White Canadian, no known ethnicities","White (Causcasian)","white","blanc Canadienne","Canadienne blanche",
+     "BLANCHE","Blanc.", "Blanc (Canada)","Canadienne blanc","Caucasien","Blanc - Canadien",
+     "Blanc canadienne","Blanc du canada","Blanc canadien","Blanc canadian",
+     "Blanche (Canadienne)","une femme de race blanche","blanc","Blanche","Blanc canada","Blanc","Blanche, Canadienne",
+     "blanc quebecois","caucasien",
+     "White & Canadian","White Canadian","blanc du canada","White- true blue CANADIAN","White Scottish Descent",
+     "blanche canadienne","Blanc Canadien","canadien francais blanc",
+     "white, scottish and other",
+     "ccaucasian","caucasienne",
+     "white european","white, mainly scottish/english/irish",
+     "white, of european decent with mi'kmaq ancestors several generations removed.",
+     "canadian caucasian", "white, norwegian and scottish",
+     "canadien francais, caucasien","european caucasian",
+     "white celtic")
+```
+
+```{r}
+# a for loop for creating race var:
+m2$race<-NULL
+
+for(i in 1:nrow(m2)){
+  m2$race[i]<-case_when(
+    #select pnts and nothing else
+    !is.na(m2[i,22]) & 
+      sum(is.na(m2[i,9:22])) == 13 ~ "pnts",
+    
+    #select only 1 white ethnicity
+    !is.na(m2[i,19]) & 
+      sum(is.na(m2[i,9:22])) == 13 ~ "White",
+    
+    #select only 1 racialized minority ethnicity
+    sum(!is.na(m2[i,9:18])) == 1 &
+      sum(is.na(m2[i,9:22])) == 13 ~ "Racialized minority",
+    
+    #select 1 white ethnicity and at least 1 racialized minority ethnicity
+    sum(!is.na(m2[i,9:18])) > 0 & 
+      !is.na(m2[i,19]) &
+      sum(is.na(m2[i,22])) ~ "Racialized minority",
+    
+    #select 2+ racialized minority ethnicities
+    sum(!is.na(m2[i, 9:18])) > 1 &
+      sum(is.na(m2[i, c(19, 22)])) == 2 ~ "Racialized minority",
+    
+    #select at least 1 racialized minority ethnicity and at least 1 "other" ethnicity
+    sum(!is.na(m2[i, 9:18])) > 0 &
+      sum(is.na(m2[i, c(19, 22)])) == 2 &
+      sum(!is.na(m2[i, 20,21])) > 0 ~ "Racialized minority",
+    
+    #select white, but also identify as a racialized minority using text box
+    sum(is.na(m2[i, c(9:18, 22)])) == 11 &
+      !is.na(m2[i,19]) &
+      sum(!is.na(m2[i, c(20:21)])) >= 1 &
+      m2[i, c(21)] %in% (rm_indn) ~ "Racialized minority",
+    
+    #select white, but also identify as white using text box
+    sum(is.na(m2[i, c(9:18, 22)])) == 11 &
+      !is.na(m2[i,19]) &
+      sum(!is.na(m2[i, c(20:21)])) >= 1 &
+      m2[i, c(21)] %in% (w) ~ "White",
+    
+    #select other and identify as a racialized minority using text box
+    sum(is.na(m2[i, c(9:19, 22)])) == 12 &
+      m2[i, 21] %in% (rm_indn) ~ "Racialized minority",
+    
+    #select other and identify as white using text box
+    sum(is.na(m2[i, c(9:19, 22)])) == 12 &
+      m2[i, 21] %in% (w) ~ "White",
+    
+    TRUE ~ NA)
+}
+
+table(m2$race, useNA = 'ifany')
+
+# pnt = prefer not to answer
+table(m2[,22], m2$race, useNA = 'ifany')
+
+# remove loose race vars
+m2<-select(m2, -c(9:22))
+```
+
+
+
+#### 1.4 save the data
 ```{r}
 Canpaths<-m2
 rm(m1, m2, n_admin, ser_sw, n_ser, qx_mtpmiss, ser_rid_dup)
@@ -363,6 +530,8 @@ save(Canpaths, file = "../1_data/private/CANPATH/Canpaths.RData")
 
 # Save to the shared folder 
 save(Canpaths, file = "~/../../jmy/CANPATH/Canpaths.RData")
+# Save to the shared folder as .csv format
+write.csv(Canpaths, file = "~/../../jmy/CANPATH/Canpaths.csv", row.names=FALSE)
 ```
 
 
