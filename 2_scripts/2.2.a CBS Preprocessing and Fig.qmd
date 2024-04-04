@@ -9,8 +9,7 @@ author: J.Chen (let me know if you run into any troubles with those codes)
 
 This qmd file is to share the code of CBS data cleaning and monthly test positivity figures with Y.Yu, who will apply Bayesian models to adjust for waning sensitivity and specificity.
 
-For APL
-For Canpath cleaning & pre-processing, please refer to "2.1.1 Canpath Data.qmd"
+For APL For Canpath cleaning & pre-processing, please refer to "2.1.1 Canpath Data.qmd"
 
 ## Running Code
 
@@ -84,7 +83,7 @@ table(CBS$samplemonth, useNA = 'ifany')
 
 #### 1.3 Canpath data
 
-**Notes:** In Canpath data we've removed three individuals who provided multiple samples, and several samples tested for multiple times. Those samples tested for multiple times did not result in inconsistent interpretation on assay results. See "2.1.1 Canpath Date.Rmd" for more details on data cleaning. 
+**Notes:** In Canpath data we've removed three individuals who provided multiple samples, and several samples tested for multiple times. Those samples tested for multiple times did not result in inconsistent interpretation on assay results. See "2.1.1 Canpath Date.Rmd" for more details on data cleaning.
 
 In Canpath data all rid (researcherID, participant ID) and sid (sample ID) are unique and 1-to-1, though some sid is missing.
 
@@ -140,6 +139,7 @@ We only applied the sens & spec from third-party studies, instead of the numbers
 **Notes:** In Canpath data we don't have to worry about weighting, as one people has been sampled only once, then tested by multiple asays (either Gingras x3 or Abbott x2)
 
 ##### 2.3.1 Pre-process Canpath data
+
 ```{r}
 Canpaths %>%
   select(region, assay_id) %>%
@@ -165,7 +165,6 @@ Canpaths %>%
   group_by(samplemonth, assay_id) %>%
   summarise(Freq=n())
 ```
-
 
 ```{r}
 # create sero-prevalance tab
@@ -240,6 +239,7 @@ p01 + facet_wrap(~region)
 ```
 
 #### 3.2 Canpath: make plots by region
+
 ```{r}
 # Reshape meltted data
 Canpaths_melt<-reshape2::melt(select(Canpaths_pr, samplemonth, region,

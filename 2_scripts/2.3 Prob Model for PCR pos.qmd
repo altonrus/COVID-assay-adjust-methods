@@ -37,6 +37,7 @@ table(CBS$province, useNA = 'ifany')
 # The CBSs data, for prob model only
 load(file = "../1_data/private/CBSs.RData")
 
+# The APL data
 load(file = "../1_data/private/RFD4682e.RData")
 ```
 
@@ -69,7 +70,7 @@ dta_01s<-merge(dta_01s, select(tb1, 1,3), by="pid",all.x = T, all.y = F)
 ## add interp var and study ID
 dta_01s$study<-rep(1, length(dta_01s$pid))
 dta_01s$time_pso<-rep("never_inf", length(dta_01s$pid))
-rm(tb1, tb2)
+rm(tb1, tb2, X1_pone)
 ```
 
 ```{r}
@@ -90,20 +91,34 @@ dta_03s$sample_wt<-rep(1, length(dta_03s$pid))
 # correct var names
 colnames(dta_03s)<-c("roche_n", "abbott_n",
                      colnames(dta_03s[,3:6]))
+rm(X3_mmc2)
 ```
 
 ```{r}
 ## Data-04, 2/8 months data PSO, extracted from Y. Nagakama et al.
-X4_Nakagama_all <- read_excel("../1_data/private/Prob Model/4-Nakagama_all.xlsx")
-dta_04<-X4_Nakagama_all 
-dta_04$time_pso[dta_04$time_pso=="2 months"]<-"less_3_month"
-dta_04$time_pso[dta_04$time_pso=="8 months"]<-"more_3_month"
-
-# All participants been sampled twice, wt=0.5
-dta_04$sample_wt<-rep(0.5, length(dta_04$pid))
+X4_Nakagama_all <- read_excel("../1_data/private/Prob Model/4-anonymized_rocheabbott.xlsx",
+                              col_types = c("numeric", "text", "numeric", 
+                                            "numeric", "numeric", "numeric"))
+    
+dta_04<-X4_Nakagama_all
 
 # correct col names
-colnames(dta_04)<-c("study", colnames(dta_04[,2:6]))
+colnames(dta_04)<-c("age","gender","month_pso","abbott_n","roche_n","pid")
+dta_04$pso <- dta_04$month_pso*30
+hist(dta_04$pso, breaks = seq(0,540, by=30)) # not so much samples within 3-9 months
+
+dta_04$time_pso[dta_04$pso<=90]<-"less_3_month"
+dta_04$time_pso[dta_04$pso<=180 & dta_04$pso>90]<-"3-6_month"
+dta_04$time_pso[dta_04$pso<=270 & dta_04$pso>180]<-"6-9_month"
+dta_04$time_pso[dta_04$pso>270]<-"more_9_month"
+table(dta_04$time_pso, useNA = 'ifany')
+
+# All participants been sampled only once, wt=1
+dta_04$sample_wt<-rep(1, length(dta_04$pid))
+dta_04$study<-rep(4, length(dta_04$pid))
+
+# clean the unused data
+rm(X4_Nakagama_all)
 ```
 
 ```{r}
@@ -111,97 +126,65 @@ colnames(dta_04)<-c("study", colnames(dta_04[,2:6]))
 X6_Paul <- read_excel("../1_data/private/Prob Model/6-2024_02_06_SR1407_McGill.xlsx", 
     sheet = "data_import", skip = 1)
 dta_06<-select(X6_Paul, 1:6, 9)
-colnames(dta_06)<-c("age", "gender", "pid", "time",
+colnames(dta_06)<-c("age", "gender", "pid", "pso",
                     "abbott_n", "roche_n", "study")
 dta_06s<-dta_06[!(is.na(dta_06$abbott_n) &
                   is.na(dta_06$roche_n)),]
 
 # add time_pso based on time
-dta_06s$time_pso[dta_06s$time<=90]<-"less_3_month"
-dta_06s$time_pso[dta_06s$time> 90]<-"more_3_month"
+dta_06s$time_pso[dta_06s$pso<=90]<-"less_3_month"
+dta_06s$time_pso[dta_06s$pso<=180 & dta_06s$pso>90]<-"3-6_month"
+dta_06s$time_pso[dta_06s$pso<=270 & dta_06s$pso>180]<-"6-9_month"
+dta_06s$time_pso[dta_06s$pso>270]<-"more_9_month"
 table(dta_06s$time_pso, useNA = 'ifany')
+hist(dta_06s$pso, breaks = seq(0,540, by=30)) # some data from month 3-9
 
 # add weights
 tb1<-as.data.frame(table(dta_06s$pid))
 colnames(tb1)<-c("pid","freq")
 tb1$sample_wt<-1/tb1$freq
 dta_06s<-merge(dta_06s, select(tb1, 1,3), by="pid",all.x = T, all.y = F)
-rm(tb1, tb2)
-
-dta_06s<-select(dta_06s, -c("time"))
+rm(tb1, tb2, X6_Paul)
 ```
 
 #### bind all those four data by rows
 
 ```{r}
-dta_all<-dplyr::bind_rows(dta_01s, dta_03s, dta_04, dta_06s)
+dta_all<-dplyr::bind_rows(dta_01s, dta_03s, 
+                          select(dta_04, -c("month_pso")), dta_06s)
 
-# add log quant assay
+# add log quant assay (log_e transformation)
 dta_all$log_roche_n<-log(dta_all$roche_n)    # COI for log_n = 0
-dta_all$log_abbott_n<-log(dta_all$abbott_n)  # COI for log)n = 0.3365 (COI = 1.4)
+dta_all$log_abbott_n<-log(dta_all$abbott_n)  # COI for log_n = 0.3365 (COI = 1.4)
+
+# clean the gender var
+table(dta_all$gender)
+dta_all$gender[dta_all$gender %in% c("m")]<-"M"
+dta_all$gender[dta_all$gender %in% c("f")]<-"F"
 
 # save the rbinded harmonized data
 save(dta_all, file="../1_data/private/Prob Model/dta_all.RData")
+
+# summary analysis
+hist(dta_all$pso, breaks = seq(0,540, by=30))
+table(dta_all$time_pso, useNA = 'ifany')
+
+# remove all intermediate data
+rm(dta_01, dta_01s, dta_03, dta_03s, dta_04, dta_06, dta_06s)
 ```
 
 ##============================ Part I. Probablistic Model ====================##
 
-## Create a small subset for PCR+ data
+#### 1.1 Multinomial Regression Model:
 
 ```{r}
-APL_PCR<-RFD4682_e %>%
-  .[is.na(.$`N-IgG_RESULT`)==F & .$NAAT_STATUS %in% c("Negative","Positive"),]
-APL_PCR$NAAT[APL_PCR$NAAT_STATUS=="Positive"]<-1
-APL_PCR$NAAT[APL_PCR$NAAT_STATUS=="Negative"]<-0
-APL_PCR$NAAT<-as.numeric(APL_PCR$NAAT)
-table(APL_PCR$NAAT_STATUS, APL_PCR$NAAT, useNA = 'ifany')
-
-# A subset for those who got results within 90 days
-APL_PCR90<-APL_PCR %>%
-  .[.$DAYS_SINCE_NAAT>=0 & .$DAYS_SINCE_NAAT<=90,]
-```
-
-## Build regression model using the data
-
-```{r}
-# Model 1: add age and sex as covariates, 90 days only
-plm01<-glm(NAAT ~ AGE_AT_COLLECTION + GENDER  + N, data = APL_PCR90,
-           family = binomial(link = "logit"))
-summary(plm01)
-
-# Model 2: add age and sex as covariates, everyone
-plm02<-glm(NAAT ~ AGE_AT_COLLECTION + GENDER  + N, data = APL_PCR,
-           family = binomial(link = "logit"))
-summary(plm02)
-
-# Model 3, add NAAT time into the model and compare it with model 2
-plm03<-glm(NAAT ~ AGE_AT_COLLECTION + GENDER  + N + DAYS_SINCE_NAAT, data = APL_PCR,
-           family = binomial(link = "logit"))
-summary(plm03)
-
-lrtest(plm02, plm03) # Sig difference, much lower AIC
-```
-
-Based on model 2 we can also add time since last PCR test into analysis, and it will improve AIC greatly for model fitting. However, this model is not applicable for other datasets as the PCR test info is missing.
-
-```{r}
-# Add predicted prob back to the data
-APL_PCR90$NAAT_p<-predict(plm01, type = 'response')
-hist(APL_PCR90$NAAT)
-
-sum(APL_PCR90$NAAT)    # N=1008
-sum(APL_PCR90$NAAT_p)  # N=1008
-```
-
-## Multinomial Regression Model:
-
-```{r}
+# Model 01: simple model, unweighted
 mnlm01<-multinom(relevel(as.factor(time_pso), ref = "never_inf") ~ roche_n, data = dta_all)
 summary(mnlm01)
 
 (summary(mnlm01))$coeffcients/summary(mnlm01)$standard.errors
 
-# Model 02 takes sample weights into account
+# Model 02: takes sample weights into account
 mnlm02<-multinom(relevel(as.factor(time_pso), ref = "never_inf") ~ roche_n, 
                  data = dta_all, weights = sample_wt)
 summary(mnlm02)
@@ -239,102 +222,16 @@ shapiro.test(dta_all$log_roche_n[dta_all$log_roche_n>0])  # not normal
 ```
 
 ```{r}
-# Model 02 takes sample weights into account
+# Model 03  takes sample weights into account
 mnlm03<-multinom(relevel(as.factor(time_pso), ref = "never_inf") ~ log_roche_n, 
                  data = dta_all, weights = sample_wt)
 summary(mnlm03)
+## use estimates/SE and 1.96 to calculate p-value manually, should be <0.001
 ```
 
-##====================== Part II. Applying the model to APL data =============##
+##====================== Part II. Applying the model to Sero data =============##
 
-Apply the APL_90 model to everyone in the dataset, then plot the difference btw those who has PCR test results (observed) and those who do not (predicted).
-
-Compared to model 1, model 2 is predicting "ever predicted" rather than "infected in past three months" as it does in model 1. The only one we can apply to the APL data is the model 1.
-
-need to rewrite this section
-
-#### 2.1 Prepare for the dataset
-
-```{r}
-#those tested within last 90 days
-summary(APL_PCR90$DAYS_SINCE_NAAT) # Model 1 is built upon this dataset
-
-# Add an indicator for those who had PCR test in past 90 days
-RFD4682_e$PCR90<-rep(0, length(RFD4682_e$order_ID))
-RFD4682_e$PCR90[RFD4682_e$order_ID %in% APL_PCR90$order_ID]<-1
-table(RFD4682_e$PCR90)
-
-# Clean the gender variable (level unknown)
-table(RFD4682_e$GENDER)
-APL_Clean<-RFD4682_e
-APL_Clean$GENDER[APL_Clean$GENDER=="Unknown"]<-NA
-
-# Recode NAAT as 0/1/9
-APL_Clean$NAAT[APL_Clean$NAAT_STATUS=="Positive"]<-1
-APL_Clean$NAAT[APL_Clean$NAAT_STATUS=="Negative"]<-0
-APL_Clean$NAAT[APL_Clean$NAAT_STATUS=="No Prior NAT"]<-9
-APL_Clean$NAAT<-as.numeric(APL_Clean$NAAT)
-table(APL_Clean$NAAT_STATUS, APL_Clean$NAAT, useNA = 'ifany')
-
-# Apply model 1 to APL data (full)
-APL_Clean$NAAT_p<-predict(plm01, newdata = APL_Clean, type = 'response')
-
-# Create NAAT_m, using real NAAT results for those tested <=90 days
-APL_Clean$NAAT_m <- APL_Clean$NAAT_p
-APL_Clean$NAAT_m[APL_Clean$PCR90==1 & APL_Clean$NAAT_STATUS=="Positive"]<-1
-APL_Clean$NAAT_m[APL_Clean$PCR90==1 & APL_Clean$NAAT_STATUS=="Negative"]<-0
-        
-      
-summary(APL_Clean$NAAT_m)
-table(APL_Clean$NAAT_m==1) # number matches
-table(APL_Clean$NAAT_m==0)
-```
-
-#### 2.2 Based on new data, making plot seperately
-
-```{r}
-# Calculate positivity for each month
-
-# tb1-the data (PCR<90) used to build model
-tb1<-APL_Clean[APL_Clean$PCR90==1,] %>%
-  group_by(Col_Month) %>%
-  summarise(n = n() , pos= mean(NAAT_m))
-tb1$PCR90<-rep(1, length(tb1$Col_Month))
-
-# tb2-we applied the model to the rest of APL (PCR>90) 
-tb2<-APL_Clean[APL_Clean$PCR90==0,] %>%
-  group_by(Col_Month) %>%
-  summarise(n = n() , pos= mean(NAAT_m, na.rm=TRUE))
-tb2$PCR90<-rep(0, length(tb2$Col_Month))
-
-# Merge the data to take a look
-tb3<-merge(tb1, tb2, by = "Col_Month", all.x = T, all.y = T)
-tb3$Col_Month<-as.yearmon(tb3$Col_Month)
-tb3<-tb3[order(tb3$Col_Month),]
-
-# Compare the difference
-# Paired t-test
-t.test(tb3$pos.x[18:27], tb3$pos.y[18:27], paired=1)
-# p-value=0.2761, no sig diff between observed (<90D) and the rest
-```
-
-#### The plots
-
-```{r}
-APL_Pmelt<-rbind.data.frame(select(tb1, Col_Month, pos, PCR90), 
-                            select(tb2[18:27,], Col_Month, pos, PCR90))
-APL_Pmelt$PCR90[APL_Pmelt$PCR90==0]<-"Predicted"
-APL_Pmelt$PCR90[APL_Pmelt$PCR90==1]<-"Observed"
-
-APL_Pmelt %>%
-  ggplot(aes(x=Col_Month, y=pos, group=PCR90, colour=PCR90)) +
-  geom_point() +
-  geom_line()  +
-  geom_hline(yintercept=0, colour='blue', linetype=2) +
-  theme_bw() 
-```
-
-#### 2.3 Model adjusting for age and sex
+#### 2.1 Model adjusting for age and sex
 
 The multinominal model we applied to APL before (mnlm01, 02, 03), none of those three model has adjusted for covariates. However with the data we have we could adjust for those two variables in Roches assays.
 
@@ -378,26 +275,32 @@ lrtest(mnlm03.b_sex, mnlm03.b)
 
 **Conclusion**: 1.Adjusting for age and gender does not improve the model fit significantly. 2.Adjusting for gender only will have limited improvement on model fit. Not adjusting for age & sex is okay, it will allow us to utilize more neg ref data, as age & sex info is usually missing in those data.
 
-##============ Part III-1 Apply Model to CBS Data ================
+#### 2.2 Apply Model to CBS Data
 
 ```{r}
 # Add log roche_n to the CBS data
 CBS$log_roche_n<-log(CBS$roche_n)
 
-
 CBS_prob_r<-as.data.frame(predict(mnlm03, newdata = CBS, "probs")) # num of >3 months = 0
-mean(CBS_prob_r[,1], na.rm = T)  # 59.97%
-mean(CBS_prob_r[,2], na.rm = T)  # 27.70%
-mean(CBS_prob_r[,3], na.rm = T)  # 12.33%
+mean(CBS_prob_r[,1], na.rm = T)  # never: 59.82%
+mean(CBS_prob_r[,4], na.rm = T)  # <3 months: 25.31%
+mean(CBS_prob_r[,2], na.rm = T)  # 3-6 month: 3.87%
+mean(CBS_prob_r[,3], na.rm = T)  # 6-9 months: 2.98%
+mean(CBS_prob_r[,5], na.rm = T)  # >9 months: 8.02%
+
+CBS_prob_r$ever_inf <- 1-CBS_prob_r$never_inf
+CBS_prob_r$less_6_month <- CBS_prob_r$less_3_month + CBS_prob_r$`3-6_month`
+CBS_prob_r$less_9_month <- CBS_prob_r$less_6_month + CBS_prob_r$`6-9_month`
 
 CBSs<-cbind.data.frame(select(CBS, pid, sampledate, sex, age, fsa,
                         province, roche_n, abbott_n, roche_s, log_roche_n),
-                 CBS_prob_r)
+                 CBS_prob_r[,c(4,6,7,8)])
 ```
 
 ```{r}
 ## Applying the model with age & sex
 CBS$gender<-CBS$sex
+
 CBS_prob_r2<-as.data.frame(predict(mnlm03.b, newdata = CBS, "probs")) # num of >3 months = 0
 mean(CBS_prob_r2[,1], na.rm = T)  # 59.49%
 mean(CBS_prob_r2[,2], na.rm = T)  # 32.45%
@@ -433,13 +336,9 @@ table(CBSs$province, CBSs$region, useNA = 'ifany')
 CBSs$samplemonth<-as.yearmon(CBSs$sampledate)
 table(CBSs$samplemonth, useNA = 'ifany')
 
-# Creat a ever inf indicator
-CBSs$ever_inf <- 1-CBSs$never_inf
-
 # Copy new vars to CBSs2
 CBSs2$region<-CBSs$region
 CBSs2$samplemonth<-CBSs$samplemonth
-CBSs2$ever_inf <- 1-CBSs2$never_inf
 ```
 
 #### Save the dataset
@@ -526,11 +425,131 @@ tb_all2<-rbind.data.frame(tb_bc, tb_ab, tb_skm, tb_on, tb_at)
 tb_all2<-tb_all2[!is.na(tb_all2$samplemonth),]
 ```
 
+```{r}
+# create by-month estimates, by region
+# create by-month est for each region
+tb_all<-CBSs %>%
+  group_by(samplemonth, region) %>%
+  summarise(n = n() , 
+            ever_inf= mean(ever_inf, na.rm = T), 
+            less_3_month=mean(less_3_month, na.rm = T),
+            less_6_month=mean(less_6_month, na.rm=T),
+            less_9_month=mean(less_9_month, na.rm=T),
+            )
+# clean NAs
+tb_all<-tb_all[!is.na(tb_all$region), ]
+```
+
+##===================== Part III. Exp: Reg Model Abbott N~Roche N =============##
+
+This idea came from Alton, we can use the data we have for prob model training to generate another model: Abbott-N~Roche-N. Then apply the model to the CBS data and generate the sero-prevalence curve, see if it gets closer to the APL curve
+
+```{r}
+# The linear model using log_e transformed abbott_n and roche_n
+
+# lm01, simple model
+lm01<-glm(log_abbott_n ~ log_roche_n, 
+          family = "gaussian",
+          data = dta_all[!is.na(dta_all$age) &
+                         !is.na(dta_all$gender),], weights = sample_wt)
+summary(lm01) # AIC=1398
+
+# lm02, add age and sex
+lm02<-glm(log_abbott_n ~ log_roche_n + age + gender, 
+          family = "gaussian",
+          data = dta_all[!is.na(dta_all$age) &
+                         !is.na(dta_all$gender),], weights = sample_wt)
+summary(lm02) # AIC=1401.1, increased a bit
+
+# lm02.a, add age only
+lm02.a<-glm(log_abbott_n ~ log_roche_n + age, 
+          family = "gaussian",
+          data = dta_all[!is.na(dta_all$age) &
+                         !is.na(dta_all$gender),], weights = sample_wt)
+summary(lm02.a) # AIC=1400, increased a bit
+
+# lm02.b, add sex only
+lm02.b<-glm(log_abbott_n ~ log_roche_n + gender, 
+          family = "gaussian",
+          data = dta_all[!is.na(dta_all$age) &
+                         !is.na(dta_all$gender),], weights = sample_wt)
+summary(lm02.b) # AIC=1399.1, increased a bit
+
+lrtest(lm02, lm01) # p=0.65, not so much diff
+
+## Let's just use simple model lm01 then
+
+# refit model 01, using those with missing age/sex info
+lm01<-glm(log_abbott_n ~ log_roche_n, 
+          family = "gaussian",
+          data = dta_all, weights = sample_wt)
+summary(lm01) 
+```
+
+#### Apply the model lm01 to the CBS data
+```{r}
+log_abbott_n<-predict(lm01, newdata = CBSs, "response")
+summary(log_abbott_n)
+
+CBSs$log_abbott_n <- log_abbott_n
+CBSs$abbott_n_hat <- exp(CBSs$log_abbott_n)
+summary(CBSs$abbott_n_hat)
+
+abbott_n<-CBSs %>%
+  select(abbott_n, abbott_n_hat) %>%
+  .[is.na(.$abbott_n)==F,]
+
+plot(abbott_n$abbott_n, abbott_n$abbott_n_hat)
+# do a paired t-test
+t.test(abbott_n$abbott_n, abbott_n$abbott_n_hat,
+       paired = TRUE)
+# paired t-test, log transformed
+abbott_n$log_abbott_n<-log(abbott_n$abbott_n)
+abbott_n$log_abbott_n_hat<-log(abbott_n$abbott_n_hat)
+t.test(abbott_n$log_abbott_n, abbott_n$log_abbott_n_hat,
+       paired = TRUE)
+
+# Apply COI=1.4
+CBSs$pos_abbott<-if_else(CBSs$abbott_n_hat<=1.4, 0, 1, missing = NA)
+# Apply Roche COI=1.0
+CBSs$pos_roche<-if_else(CBSs$roche_n<=1, 0, 1, missing = NA)
+```
+
+#### plot: sero-prevalence, using predicted Abbott positivity
+```{r}
+tb_abb<-CBSs %>%
+  group_by(samplemonth, region) %>%
+  summarise(n = n() , 
+            pos_abbott= sum(pos_abbott, na.rm = T), 
+            pos_roche= sum(pos_roche, na.rm = T)
+            )
+tb_abb$prop.abbott<-tb_abb$pos_abbott/tb_abb$n
+tb_abb$prop.roche<-tb_abb$pos_roche/tb_abb$n
+
+# clean NAs
+tb_abb<-tb_abb[!is.na(tb_abb$region), ]
+
+tb_abb_melt<-reshape2::melt(select(tb_abb, 1:2,6:7), 
+                        id.vars = c("samplemonth", "region"),
+                        variable.name = "assay",
+                        value.name = "prop")
+
+p03<-tb_abb_melt %>%
+  ggplot(aes(x=samplemonth, y=prop, group=assay, colour=assay)) +
+  geom_point(aes(colour=assay)) +
+  geom_line(aes(colour=assay))  +
+  theme_bw() 
+
+p03 + facet_wrap(~region)
+```
+
+
+
 #### Make plots by region
 
 ```{r}
 # Reshape meltted data
-tb_melt<-reshape2::melt(select(tb_all, 1,3:5), 
+tb_melt<-reshape2::melt(select(tb_all, 1:2,4:7), 
                         id.vars = c("samplemonth", "region"),
                         variable.name = "inf",
                         value.name = "prop")
@@ -559,14 +578,14 @@ p02<-tb_melt2 %>%
 p02 + facet_wrap(~region)
 ```
 
-## Part III-2 Apply model to APL data
+#### 2.3 Apply model to APL data
 
 ```{r}
 summary(RFD4682_e$N)
 # The codebook does not specify what types of anti-N assay is applied, given the number we assume they are using Abbott anti-N assay (small numbers)
 ```
 
-## Part III-3 Apply model to CANPATH data
+#### 2.4 Apply model to CANPATH data
 
 ```{r}
 Canpath <- read.csv("~/COVID-assay-adjust-methods/1_data/private/CANPATH/DAO-543759_ResearcherDataset_Serology_Results_74503par.csv")
@@ -574,6 +593,8 @@ Canpath_all <- read.csv("~/COVID-assay-adjust-methods/1_data/private/CANPATH/DAO
 
 table(Canpath$C1_CITF_ASSAY_ID)
 ```
+
+
 
 ## Part IV Misc Analysis
 
