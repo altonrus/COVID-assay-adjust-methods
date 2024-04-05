@@ -444,6 +444,7 @@ tb_all<-tb_all[!is.na(tb_all$region), ]
 
 This idea came from Alton, we can use the data we have for prob model training to generate another model: Abbott-N~Roche-N. Then apply the model to the CBS data and generate the sero-prevalence curve, see if it gets closer to the APL curve
 
+#### 3.1 The linear (log) model
 ```{r}
 # The linear model using log_e transformed abbott_n and roche_n
 
@@ -486,7 +487,7 @@ lm01<-glm(log_abbott_n ~ log_roche_n,
 summary(lm01) 
 ```
 
-#### Apply the model lm01 to the CBS data
+#### 3.2 Apply the model lm01 to the CBS data
 ```{r}
 log_abbott_n<-predict(lm01, newdata = CBSs, "response")
 summary(log_abbott_n)
@@ -515,7 +516,7 @@ CBSs$pos_abbott<-if_else(CBSs$abbott_n_hat<=1.4, 0, 1, missing = NA)
 CBSs$pos_roche<-if_else(CBSs$roche_n<=1, 0, 1, missing = NA)
 ```
 
-#### plot: sero-prevalence, using predicted Abbott positivity
+#### 3.3 plot: sero-prevalence, using predicted Abbott positivity
 ```{r}
 tb_abb<-CBSs %>%
   group_by(samplemonth, region) %>%

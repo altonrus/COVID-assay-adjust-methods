@@ -231,8 +231,8 @@ CBS_melt<-reshape2::melt(select(CBS_pr, samplemonth, region,
 p01<-CBS_melt %>%
   ggplot(aes(x=samplemonth, y=prop, group=Adj, colour=Adj)) +
   geom_point(aes(colour=Adj)) +
-#  geom_smooth(method = "loess", aes(colour=Adj), se=FALSE) +
-  geom_line(aes(colour=Adj))  + #non-smooth curve
+# geom_smooth(method = "loess", aes(colour=Adj), se=FALSE) +
+  geom_line(aes(colour=Adj))  + # non-smooth curve
   theme_bw() 
 
 p01 + facet_wrap(~region)
