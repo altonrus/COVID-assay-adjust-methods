@@ -25,6 +25,8 @@ library(lmtest)        # for LR test, comparing models
 #library(reshape2)     # for melt() function
 library(readxl)        # for reading .xlsx data
 library(nnet)          # for multinomial log regression
+#library(expss)         # for labeling variables
+library(ggExtra)       # for marginal dist on ggplot
 ```
 
 ## Load dataset
@@ -39,6 +41,9 @@ load(file = "../1_data/private/CBSs.RData")
 
 # The APL data
 load(file = "../1_data/private/RFD4682e.RData")
+
+# The cleaned ver of Canpath data
+
 ```
 
 ## Dataset from previous studies for model building
@@ -96,6 +101,7 @@ rm(X3_mmc2)
 
 ```{r}
 ## Data-04, 2/8 months data PSO, extracted from Y. Nagakama et al.
+## The Convalescent pts data
 X4_Nakagama_all <- read_excel("../1_data/private/Prob Model/4-anonymized_rocheabbott.xlsx",
                               col_types = c("numeric", "text", "numeric", 
                                             "numeric", "numeric", "numeric"))
@@ -120,6 +126,23 @@ dta_04$study<-rep(4, length(dta_04$pid))
 # clean the unused data
 rm(X4_Nakagama_all)
 ```
+
+```{r}
+## The negative control data, updated on 7-Apr-2024
+dta_04_neg <- read_excel("../1_data/private/Prob Model/4-anonymized_rocheabbott.xlsx",
+                              sheet = "true_neg",
+                              col_types = c("text", "numeric", "numeric", 
+                                            "numeric", "numeric", "numeric"))
+
+# correct col names
+colnames(dta_04_neg)<-c("gender","age","month_pso","abbott_n","roche_n","pid")
+dta_04_neg$pso <- dta_04_neg$month_pso*30
+
+# All participants been sampled only once, wt=1
+dta_04_neg$sample_wt<-rep(1, length(dta_04_neg$pid))
+dta_04_neg$study<-rep(4.1, length(dta_04_neg$pid))
+```
+
 
 ```{r}
 ## Data-06, shared by Dr Paul Bieniasz
@@ -152,6 +175,8 @@ rm(tb1, tb2, X6_Paul)
 ```{r}
 dta_all<-dplyr::bind_rows(dta_01s, dta_03s, 
                           select(dta_04, -c("month_pso")), dta_06s)
+dta_all<-dplyr::bind_rows(dta_all, 
+                          select(dta_04_neg, -c("month_pso")))
 
 # add log quant assay (log_e transformation)
 dta_all$log_roche_n<-log(dta_all$roche_n)    # COI for log_n = 0
@@ -162,6 +187,16 @@ table(dta_all$gender)
 dta_all$gender[dta_all$gender %in% c("m")]<-"M"
 dta_all$gender[dta_all$gender %in% c("f")]<-"F"
 
+# Label the study var
+dta_all$study<-as.character(dta_all$study)
+dta_all$study[dta_all$study=='1']<-"Leon_FR"
+dta_all$study[dta_all$study=='3']<-"Jamaica"
+dta_all$study[dta_all$study=='4']<-"Osaka_JP_pos"
+dta_all$study[dta_all$study=='4.1']<-"Osaka_JP_neg"
+dta_all$study[dta_all$study=='6']<-"UK"
+
+dta_all$time_pso[is.na(dta_all$time_pso)]<-"never_inf"
+
 # save the rbinded harmonized data
 save(dta_all, file="../1_data/private/Prob Model/dta_all.RData")
 
@@ -170,12 +205,12 @@ hist(dta_all$pso, breaks = seq(0,540, by=30))
 table(dta_all$time_pso, useNA = 'ifany')
 
 # remove all intermediate data
-rm(dta_01, dta_01s, dta_03, dta_03s, dta_04, dta_06, dta_06s)
+rm(dta_01, dta_01s, dta_03, dta_03s, dta_04, dta_04_neg, dta_06, dta_06s)
 ```
 
 ##============================ Part I. Probablistic Model ====================##
 
-#### 1.1 Multinomial Regression Model:
+#### 1.1 Multinomial Regression Model (Roche):
 
 ```{r}
 # Model 01: simple model, unweighted
@@ -229,6 +264,17 @@ summary(mnlm03)
 ## use estimates/SE and 1.96 to calculate p-value manually, should be <0.001
 ```
 
+#### 1.2 Model mnlm04 same model but for abbott
+```{r}
+# Model 04  takes sample weights into account
+mnlm04<-multinom(relevel(as.factor(time_pso), ref = "never_inf") ~ log_abbott_n, 
+                 data = dta_all, weights = sample_wt)
+summary(mnlm04)
+## use estimates/SE and 1.96 to calculate p-value manually, should be <0.001
+```
+
+
+
 ##====================== Part II. Applying the model to Sero data =============##
 
 #### 2.1 Model adjusting for age and sex
@@ -275,7 +321,7 @@ lrtest(mnlm03.b_sex, mnlm03.b)
 
 **Conclusion**: 1.Adjusting for age and gender does not improve the model fit significantly. 2.Adjusting for gender only will have limited improvement on model fit. Not adjusting for age & sex is okay, it will allow us to utilize more neg ref data, as age & sex info is usually missing in those data.
 
-#### 2.2 Apply Model to CBS Data
+#### 2.2 Apply Model (Roche) to CBS Data
 
 ```{r}
 # Add log roche_n to the CBS data
@@ -311,7 +357,7 @@ CBSs2<-cbind.data.frame(select(CBS, pid, sampledate, sex, age, fsa,
                  CBS_prob_r2)
 ```
 
-#### Make by Region Plots
+#### 2.2.2 Make by Region Plots
 
 ```{r}
 # Recategorize by regions
@@ -439,6 +485,145 @@ tb_all<-CBSs %>%
 # clean NAs
 tb_all<-tb_all[!is.na(tb_all$region), ]
 ```
+#### 2.2.3 Make plots by region
+
+```{r}
+# Reshape meltted data
+tb_melt<-reshape2::melt(select(tb_all, 1:2,4:7), 
+                        id.vars = c("samplemonth", "region"),
+                        variable.name = "inf",
+                        value.name = "prop")
+
+tb_melt2<-reshape2::melt(select(tb_all2, 1,3:5), 
+                        id.vars = c("samplemonth", "region"),
+                        variable.name = "inf",
+                        value.name = "prop")
+
+# 1. The figure using simple model
+p01<-tb_melt %>%
+  ggplot(aes(x=samplemonth, y=prop, group=inf, colour=inf)) +
+  geom_point(aes(colour=inf)) +
+  geom_line(aes(colour=inf))  +
+  theme_bw() 
+
+p01 + facet_wrap(~region)
+
+# 2. The model using simple model + age & sex
+p02<-tb_melt2 %>%
+  ggplot(aes(x=samplemonth, y=prop, group=inf, colour=inf)) +
+  geom_point(aes(colour=inf)) +
+  geom_line(aes(colour=inf))  +
+  theme_bw() 
+
+p02 + facet_wrap(~region)
+```
+
+#### 2.3 Apply model to APL data
+
+#### 2.3.1 Load & Clean
+```{r}
+summary(RFD4682_e$N)
+# The codebook does not specify what types of anti-N assay is applied, given the value we assume they are using Abbott anti-N assay (small numbers)
+
+# create a subset of APL
+APLs<-RFD4682_e %>%
+  select(order_ID, AGE_AT_COLLECTION, GENDER, N, Col_Month, PAT3)
+
+# unify colnames
+colnames(APLs)<-c("order_ID","age","gender","abbott_n","samplemonth","fsa")
+APLs$samplemonth<-as.yearmon(APLs$samplemonth)
+
+# add log_abbott_n
+## find 0 values bf transformation
+APLs$abbott_n[APLs$abbott_n==0 & 
+              !is.na(APLs$abbott_n)]<-0.001
+
+APLs$log_abbott_n <- log(APLs$abbott_n)
+```
+
+#### 2.3.2 Apply model (Abbott)
+```{r}
+# Apply the model mnlm04
+APLs_prob_r<-as.data.frame(predict(mnlm04, newdata = APLs, "probs")) # num of >3 months = 0
+mean(APLs_prob_r[,1], na.rm = T)  # never: 53.28%
+mean(APLs_prob_r[,4], na.rm = T)  # <3 months: 24.21%
+mean(APLs_prob_r[,2], na.rm = T)  # 3-6 month: 5.40%
+mean(APLs_prob_r[,3], na.rm = T)  # 6-9 months: 4.66%
+mean(APLs_prob_r[,5], na.rm = T)  # >9 months: 12.46%
+
+APLs_prob_r$ever_inf <- 1-APLs_prob_r$never_inf
+APLs_prob_r$less_6_month <- APLs_prob_r$less_3_month + APLs_prob_r$`3-6_month`
+APLs_prob_r$less_9_month <- APLs_prob_r$less_6_month + APLs_prob_r$`6-9_month`
+
+APLs<-cbind.data.frame(APLs, APLs_prob_r[,c(4,6,7,8)])
+```
+
+```{r}
+# create melt data (monthly rolling inc prop estimates)
+tb_APL<-APLs %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            ever_inf= mean(ever_inf, na.rm = T), 
+            less_3_month=mean(less_3_month, na.rm = T),
+            less_6_month=mean(less_6_month, na.rm=T),
+            less_9_month=mean(less_9_month, na.rm=T),
+            )
+# clean NAs
+tb_APL<-tb_APL[!is.na(tb_APL$samplemonth) & !is.na(tb_APL$ever_inf), ]
+
+
+```
+
+#### 2.3.3 making Plots
+```{r}
+tb_melt_APL<-reshape2::melt(select(tb_APL, 1,3:6), 
+                        id.vars = c("samplemonth"),
+                        variable.name = "inf",
+                        value.name = "prop")
+
+p06<-tb_melt_APL %>%
+  ggplot(aes(x=samplemonth, y=prop, group=inf, colour=inf)) +
+  geom_point(aes(colour=inf)) +
+  geom_line(aes(colour=inf))  +
+  theme_bw()
+p06
+```
+**Additional plotting** 
+```{r}
+# merge monthly summary table: CBS + APL
+tb_CBS<-tb_all[tb_all$region=="Alberta",] %>%
+  select(-2)
+tb_CBS$data<-rep("CBS", length(tb_CBS$samplemonth))
+
+tb_APL$data<-rep("APL", length(tb_APL$samplemonth))
+tb_APLCBS<-bind_rows(select(tb_CBS, -2), select(tb_APL, -2))
+
+```
+
+```{r}
+# create melt data:
+tb_melt_2<-reshape2::melt(tb_APLCBS, 
+                        id.vars = c("samplemonth", "data"),
+                        variable.name = "inf",
+                        value.name = "prop")
+
+p07<-tb_melt_2 %>%
+  ggplot(aes(x=samplemonth, y=prop, group=data, colour=data)) +
+  geom_point(aes(colour=data)) +
+  geom_line(aes(colour=data))  +
+  theme_bw()
+p07 + facet_wrap(~inf)
+```
+
+
+#### 2.4 Apply model to CANPATH data
+
+```{r}
+Canpath <- read.csv("~/COVID-assay-adjust-methods/1_data/private/CANPATH/DAO-543759_ResearcherDataset_Serology_Results_74503par.csv")
+Canpath_all <- read.csv("~/COVID-assay-adjust-methods/1_data/private/CANPATH/DAO-543759_ResearcherDataset_Qx_96014par_1125var.csv")
+
+table(Canpath$C1_CITF_ASSAY_ID)
+```
 
 ##===================== Part III. Exp: Reg Model Abbott N~Roche N =============##
 
@@ -544,56 +729,73 @@ p03<-tb_abb_melt %>%
 p03 + facet_wrap(~region)
 ```
 
-
-
-#### Make plots by region
-
+#### 3.4 Plot the correlation btw Roche-N and Abbott-N:
 ```{r}
-# Reshape meltted data
-tb_melt<-reshape2::melt(select(tb_all, 1:2,4:7), 
-                        id.vars = c("samplemonth", "region"),
-                        variable.name = "inf",
-                        value.name = "prop")
+# The clear linear relation btw log_roche and log_abbott:
+plot(CBSs$log_roche_n, CBSs$log_abbott_n) # this linear association is intriduced by lm01
 
-tb_melt2<-reshape2::melt(select(tb_all2, 1,3:5), 
-                        id.vars = c("samplemonth", "region"),
-                        variable.name = "inf",
-                        value.name = "prop")
+# How it looks like in normal scale?
+plot(CBSs$roche_n, CBSs$abbott_n_hat)     # a smooth curve
 
-# 1. The figure using simple model
-p01<-tb_melt %>%
-  ggplot(aes(x=samplemonth, y=prop, group=inf, colour=inf)) +
-  geom_point(aes(colour=inf)) +
-  geom_line(aes(colour=inf))  +
-  theme_bw() 
+dta_all$study<-as.factor(dta_all$study)
 
-p01 + facet_wrap(~region)
+# using our training data:
+p04<-dta_all %>%
+  .[!is.na(.$log_abbott_n) & !is.na(.$log_roche_n),] %>%
+  ggplot(aes(x=log_roche_n, y=log_abbott_n, 
+             study, colour=study)) +
+  geom_point(aes(colour=as.factor(study))) +
+  geom_vline(xintercept = 0, linewidth=1.0, linetype="dotted", col="red") +
+  geom_hline(yintercept = log(1.4), linewidth=1.0, linetype="dotted", col="red") +
+  xlab("Roche Anti-N S/Co ratio (log scale)") + 
+  ylab("Abbott Anti-N S/Co ratio (log scale)") +
+  labs(color='') +
+  scale_colour_manual(labels = c("Jamaica (-)", "Osaka, JP (-)",
+                                 "Osaka, JP (+)","UK (+)"), 
+                      values = c("red", "skyblue", "darkgreen", "purple")) +
+  theme_bw() + 
+  theme(legend.position = "bottom")
 
-# 2. The model using simple model + age & sex
-p02<-tb_melt2 %>%
-  ggplot(aes(x=samplemonth, y=prop, group=inf, colour=inf)) +
-  geom_point(aes(colour=inf)) +
-  geom_line(aes(colour=inf))  +
-  theme_bw() 
-
-p02 + facet_wrap(~region)
+p04
 ```
 
-#### 2.3 Apply model to APL data
-
 ```{r}
-summary(RFD4682_e$N)
-# The codebook does not specify what types of anti-N assay is applied, given the number we assume they are using Abbott anti-N assay (small numbers)
+## Another figure: add CBS matched data
+dta_CBS<-CBSs[!is.na(CBSs$abbott_n) & !is.na(CBSs$roche_n),]  %>%
+  select(log_roche_n, abbott_n)
+dta_CBS$study<-rep("CBS matched", length(dta_CBS$log_roche_n))
+dta_CBS$log_abbott_n<-log(dta_CBS$abbott_n)
+
+dta_CBS<-bind_rows(select(dta_all, study, log_roche_n, log_abbott_n), 
+                   select(dta_CBS, study, log_roche_n, log_abbott_n))
+
+p05<-dta_CBS %>%
+  .[!is.na(.$log_abbott_n) & !is.na(.$log_roche_n),] %>%
+  ggplot(aes(x=log_roche_n, y=log_abbott_n, 
+             study, colour=study)) +
+  geom_point(aes(colour=as.factor(study))) +
+  geom_vline(xintercept = 0, linewidth=1.0, linetype="dotted", col="red") +
+  geom_hline(yintercept = log(1.4), linewidth=1.0, linetype="dotted", col="red") +
+  xlab("Roche Anti-N S/Co ratio (log scale)") + 
+  ylab("Abbott Anti-N S/Co ratio (log scale)") +
+  labs(color='') +
+  scale_colour_manual(labels = c("CBS","Jamaica (-)", "Osaka, JP (-)",
+                                 "Osaka, JP (+)","UK (+)"), 
+                      values = c("lightblue","red", "blue", "darkgreen", "purple")) +
+  theme_bw() + 
+  theme(legend.position = "bottom")
+
+p05
+```
+#### Alton suggests using marginal dist with {ggExtra}
+```{r}
+ggMarginal(p04, groupColour = TRUE, groupFill = TRUE) # log-scale
+ggMarginal(p05, groupColour = TRUE, groupFill = TRUE) # with CBS matched data
 ```
 
-#### 2.4 Apply model to CANPATH data
 
-```{r}
-Canpath <- read.csv("~/COVID-assay-adjust-methods/1_data/private/CANPATH/DAO-543759_ResearcherDataset_Serology_Results_74503par.csv")
-Canpath_all <- read.csv("~/COVID-assay-adjust-methods/1_data/private/CANPATH/DAO-543759_ResearcherDataset_Qx_96014par_1125var.csv")
 
-table(Canpath$C1_CITF_ASSAY_ID)
-```
+
 
 
 
