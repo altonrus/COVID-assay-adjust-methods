@@ -527,10 +527,10 @@ summary(RFD4682_e$N)
 
 # create a subset of APL
 APLs<-RFD4682_e %>%
-  select(order_ID, AGE_AT_COLLECTION, GENDER, N, Col_Month, PAT3)
+  select(order_ID, AGE_AT_COLLECTION, GENDER, N, `N-IgG_INTERP`, Col_Month, PAT3)
 
 # unify colnames
-colnames(APLs)<-c("order_ID","age","gender","abbott_n","samplemonth","fsa")
+colnames(APLs)<-c("order_ID","age","gender","abbott_n", "pos_abbott","samplemonth","fsa")
 APLs$samplemonth<-as.yearmon(APLs$samplemonth)
 
 # add log_abbott_n
@@ -629,7 +629,7 @@ table(Canpath$C1_CITF_ASSAY_ID)
 
 This idea came from Alton, we can use the data we have for prob model training to generate another model: Abbott-N~Roche-N. Then apply the model to the CBS data and generate the sero-prevalence curve, see if it gets closer to the APL curve
 
-#### 3.1 The linear (log) model
+#### 3.1.1 The linear (log) model: Abbott ~ Roche
 ```{r}
 # The linear model using log_e transformed abbott_n and roche_n
 
@@ -672,7 +672,16 @@ lm01<-glm(log_abbott_n ~ log_roche_n,
 summary(lm01) 
 ```
 
-#### 3.2 Apply the model lm01 to the CBS data
+#### 3.1.2  The linear (log) model: Roche ~ Abbott
+```{r}
+lm01r<-glm(log_roche_n ~ log_abbott_n, 
+          family = "gaussian",
+          data = dta_all, weights = sample_wt)
+summary(lm01r) 
+```
+
+
+#### 3.2.1 Apply the model lm01 to the CBS data
 ```{r}
 log_abbott_n<-predict(lm01, newdata = CBSs, "response")
 summary(log_abbott_n)
@@ -701,7 +710,22 @@ CBSs$pos_abbott<-if_else(CBSs$abbott_n_hat<=1.4, 0, 1, missing = NA)
 CBSs$pos_roche<-if_else(CBSs$roche_n<=1, 0, 1, missing = NA)
 ```
 
-#### 3.3 plot: sero-prevalence, using predicted Abbott positivity
+#### 3.2.2 Apply model lm01r to APL data
+```{r}
+APLs$log_roche_n<-predict(lm01r, newdata = APLs, "response")
+
+APLs$roche_n_hat <- exp(APLs$log_roche_n)
+summary(APLs$roche_n_hat)
+
+# Apply Roche COI=1.0
+APLs$pos_roche<-if_else(APLs$roche_n_hat<=1, 0, 1, missing = NA)
+# recode Abbott pos as num
+APLs$pos_abbott[APLs$pos_abbott=="Negative"]<-0
+APLs$pos_abbott[APLs$pos_abbott=="Positive"]<-1
+APLs$pos_abbott<-as.numeric(APLs$pos_abbott)
+```
+
+#### 3.3.1 plot: sero-prevalence, using predicted Abbott positivity
 ```{r}
 tb_abb<-CBSs %>%
   group_by(samplemonth, region) %>%
@@ -729,6 +753,35 @@ p03<-tb_abb_melt %>%
 p03 + facet_wrap(~region)
 ```
 
+#### 3.3.2 plot: sero-prevalence, using predicted Roche pos
+```{r}
+tb_ro<-APLs %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_abbott= sum(pos_abbott, na.rm = T), 
+            pos_roche= sum(pos_roche, na.rm = T)
+            )
+tb_ro$prop.abbott<-tb_ro$pos_abbott/tb_ro$n
+tb_ro$prop.roche<-tb_ro$pos_roche/tb_ro$n
+
+# clean NAs
+tb_ro<-tb_ro[!is.na(tb_ro$samplemonth) & 
+             !tb_ro$pos_abbott==0, ]
+
+tb_ro_melt<-reshape2::melt(select(tb_ro, -c(2:4)), 
+                        id.vars = c("samplemonth"),
+                        variable.name = "assay",
+                        value.name = "prop")
+
+p03r<-tb_ro_melt %>%
+  ggplot(aes(x=samplemonth, y=prop, group=assay, colour=assay)) +
+  geom_point(aes(colour=assay)) +
+  geom_line(aes(colour=assay))  +
+  theme_bw() 
+p03r
+```
+
+
 #### 3.4 Plot the correlation btw Roche-N and Abbott-N:
 ```{r}
 # The clear linear relation btw log_roche and log_abbott:
@@ -744,7 +797,7 @@ p04<-dta_all %>%
   .[!is.na(.$log_abbott_n) & !is.na(.$log_roche_n),] %>%
   ggplot(aes(x=log_roche_n, y=log_abbott_n, 
              study, colour=study)) +
-  geom_point(aes(colour=as.factor(study))) +
+  geom_point(aes(colour=as.factor(study)), alpha=0.5) +
   geom_vline(xintercept = 0, linewidth=1.0, linetype="dotted", col="red") +
   geom_hline(yintercept = log(1.4), linewidth=1.0, linetype="dotted", col="red") +
   xlab("Roche Anti-N S/Co ratio (log scale)") + 
@@ -752,7 +805,7 @@ p04<-dta_all %>%
   labs(color='') +
   scale_colour_manual(labels = c("Jamaica (-)", "Osaka, JP (-)",
                                  "Osaka, JP (+)","UK (+)"), 
-                      values = c("red", "skyblue", "darkgreen", "purple")) +
+                      values = c("red", "blue", "darkgreen", "purple")) +
   theme_bw() + 
   theme(legend.position = "bottom")
 
@@ -773,7 +826,7 @@ p05<-dta_CBS %>%
   .[!is.na(.$log_abbott_n) & !is.na(.$log_roche_n),] %>%
   ggplot(aes(x=log_roche_n, y=log_abbott_n, 
              study, colour=study)) +
-  geom_point(aes(colour=as.factor(study))) +
+  geom_point(aes(colour=as.factor(study)), alpha=0.40) +
   geom_vline(xintercept = 0, linewidth=1.0, linetype="dotted", col="red") +
   geom_hline(yintercept = log(1.4), linewidth=1.0, linetype="dotted", col="red") +
   xlab("Roche Anti-N S/Co ratio (log scale)") + 
