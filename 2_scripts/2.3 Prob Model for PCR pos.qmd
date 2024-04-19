@@ -780,6 +780,52 @@ p03r<-tb_ro_melt %>%
   theme_bw() 
 p03r
 ```
+#### 3.3.3 Plot both roche and abbott, raw/transformed in on figure
+```{r}
+# modify melted data
+
+## raw and transformed
+tb_ro_melt$raw[tb_ro_melt$assay=="prop.abbott"]<-"raw"
+tb_ro_melt$raw[tb_ro_melt$assay=="prop.roche"]<-"transformed"
+
+tb_abb_melt2<-tb_abb_melt %>%
+  .[.$region=="Alberta",] %>%
+  select(1,3,4)
+tb_abb_melt2$raw[tb_abb_melt2$assay=="prop.roche"]<-"raw"
+tb_abb_melt2$raw[tb_abb_melt2$assay=="prop.abbott"]<-"transformed"
+
+## Alberta only
+tb_alberta<-bind_rows(tb_ro_melt, tb_abb_melt2)
+
+## add a data source indicator
+table(tb_alberta$assay, tb_alberta$raw)
+tb_alberta$data[tb_alberta$assay=="prop.abbott"
+                & tb_alberta$raw=="raw"]<-"APL"
+tb_alberta$data[tb_alberta$assay=="prop.roche"
+                & tb_alberta$raw=="transformed"]<-"APL"
+tb_alberta$data[tb_alberta$assay=="prop.abbott"
+                & tb_alberta$raw=="transformed"]<-"CBS"
+tb_alberta$data[tb_alberta$assay=="prop.roche"
+                & tb_alberta$raw=="raw"]<-"CBS"
+table(tb_alberta$data, tb_alberta$assay)
+table(tb_alberta$data, tb_alberta$raw)
+```
+
+Alton's comments:
+- solid/dash to indicate raw/transformed
+- red/blue to indicate Abbott/Roche
+ 
+```{r}
+# making the plot, 
+p03.3<-tb_alberta %>%
+  ggplot(aes(x=samplemonth, y=prop, colour=data)) +
+  geom_point(aes(colour=data, shape=raw)) +
+  geom_line(aes(colour=data, linetype=raw))  +
+  theme_bw() + 
+  xlab("Time of Sample Collection") + 
+  ylab("Sero-prevalence") 
+p03.3
+```
 
 
 #### 3.4 Plot the correlation btw Roche-N and Abbott-N:
@@ -810,6 +856,29 @@ p04<-dta_all %>%
   theme(legend.position = "bottom")
 
 p04
+```
+#### Add alternative COI
+```{r}
+## add two new COI, those two were transformed using the model lm01 and lm01r
+df.temp<-as.data.frame(c(log(1.0)))
+colnames(df.temp)<-c("log_roche_n")
+COI_abbott_t<-predict(lm01, newdata = df.temp, "response")
+
+df.temp<-as.data.frame(c(log(1.4)))
+colnames(df.temp)<-c("log_abbott_n")
+COI_roche_t<-predict(lm01r, newdata = df.temp, "response")
+
+p04 +   
+  geom_vline(xintercept = COI_roche_t, linewidth=1.0, linetype="dotted", col="orange") +
+  geom_hline(yintercept = COI_abbott_t, linewidth=1.0, linetype="dotted", col="orange")
+
+## Use model lm01 coeff to calculate the Roche COI
+COI_roche_t2<-(log(1.4)-as.numeric(lm01$coefficients[1]))/as.numeric(lm01$coefficients[2])
+COI_abbott_t2<-(log(1.0)-as.numeric(lm01r$coefficients[1]))/as.numeric(lm01r$coefficients[2])
+
+p04<-p04 +   
+  geom_vline(xintercept = COI_roche_t2, linewidth=1.0, linetype="dotted", col="darkgreen") +
+  geom_hline(yintercept = COI_abbott_t2, linewidth=1.0, linetype="dotted", col="darkgreen")
 ```
 
 ```{r}
