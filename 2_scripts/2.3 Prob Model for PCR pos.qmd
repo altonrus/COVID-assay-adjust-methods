@@ -809,21 +809,49 @@ tb_alberta$data[tb_alberta$assay=="prop.roche"
                 & tb_alberta$raw=="raw"]<-"CBS"
 table(tb_alberta$data, tb_alberta$assay)
 table(tb_alberta$data, tb_alberta$raw)
+
+## create a merged indicator for study + transformed
+## we could use interaction() in ggplot instead
+tb_alberta$study<-paste(tb_alberta$data, 
+                        rep(" (", length(tb_alberta$data)),
+                        tb_alberta$raw, 
+                        rep(")", length(tb_alberta$data) ))
 ```
 
 Alton's comments:
 - solid/dash to indicate raw/transformed
 - red/blue to indicate Abbott/Roche
+- Merge the color & linetype indicator in the legend
  
 ```{r}
-# making the plot, 
+# making the plot, either those codes will work
 p03.3<-tb_alberta %>%
-  ggplot(aes(x=samplemonth, y=prop, colour=data)) +
-  geom_point(aes(colour=data, shape=raw)) +
-  geom_line(aes(colour=data, linetype=raw))  +
+  ggplot(aes(x=samplemonth, y=prop, colour=study, linetype=study)) +
+  geom_point() +
+  geom_line()  +
   theme_bw() + 
   xlab("Time of Sample Collection") + 
-  ylab("Sero-prevalence") 
+  ylab("Sero-prevalence")+ 
+  scale_colour_manual("",   values = c("red", "red", "blue", "blue"))+
+  scale_linetype_manual("", values=c(1,3,1,3))
+
+# use this chunk to skip the paste()
+p03.lab<-c("APL (raw)", "CBS (raw)", 
+           "APL (transformed)", "CBS (transformed)")
+p03.3<-tb_alberta %>%
+  ggplot(aes(x=samplemonth, y=prop, colour=interaction(data, raw),
+                                    linetype=interaction(data, raw))) +
+  geom_point() +
+  geom_line()  +
+  theme_bw() +
+  xlab("Time of Sample Collection") + 
+  ylab("Sero-prevalence")+ 
+  scale_colour_manual("", values = c("red", "blue", "red", "blue"),
+                      labels = p03.lab)+
+  scale_linetype_manual("", values=c(1,1,3,3), labels = p03.lab) +
+  theme(legend.position="top")+
+  guides(color = guide_legend(nrow = 2))
+
 p03.3
 ```
 
@@ -914,9 +942,66 @@ p05
 ggMarginal(p04, groupColour = TRUE, groupFill = TRUE) # log-scale
 ggMarginal(p05, groupColour = TRUE, groupFill = TRUE) # with CBS matched data
 ```
+#### 3.5 Create figure panel for AABB conference abstract
 
+#### 3.5.1 Panel A: the serosurveillance figure and RG/Bayesian adjustment
+Why: they only alow on figure.
+```{r}
+## Load Yuan's RG data
+rg_all <- read.csv("../1_data/private/df_time_rg_all.csv", row.names=1)
+rg_ab  <- rg_all[rg_all$region=="Alberta" &
+                 rg_all$source %in% c("APL", "CBS") &
+                 !(rg_all$model=="RAW"),]
+rg_ab$yearmon <- as.yearmon(rg_ab$yearmon)
 
+## merge rg_ab and tb_alberta
+tb_alberta<-merge(tb_alberta, select(rg_ab, 2:6),
+      by.x = c("data", "samplemonth"), by.y = c("source", "yearmon"),
+      all = T)   # need to ask Yuan about the updated CBS data
 
+tb_ab_rg<-tb_alberta %>%
+  select(-c("assay", "study")) %>%
+  .[.$raw=="raw" & !is.na(.$raw),] %>%
+  select(-c("raw"))
+
+tb_ab_rg<-reshape2::melt(tb_ab_rg, 
+                      id.vars = c("data", "samplemonth",
+                                  "rg_lower", "rg_upper"),
+                      variable.name = "rg",
+                      value.name = "prop")
+tb_ab_rg$rg_lower[tb_ab_rg$rg=="prop"]<-NA
+tb_ab_rg$rg_upper[tb_ab_rg$rg=="prop"]<-NA
+```
+
+```{r}
+# rebuild the figure
+p03.5lab<-c("APL (raw)", "CBS (raw)", 
+            "APL (RG-Bayesian)", "CBS (RG-Bayesian)")
+
+p03.5<-tb_ab_rg %>%
+  ggplot(aes(x=samplemonth, y=prop, colour=interaction(data,rg),
+                                    linetype=interaction(data,rg))) +
+  geom_point() +
+  geom_line()  +
+  geom_errorbar(aes(ymin=rg_lower, ymax=rg_upper), width=0.05)+
+  theme_bw() + 
+  xlab("Time of Sample Collection") + 
+  ylab("Sero-prevalence") +
+  scale_colour_manual("", values = c("red", "blue", "red", "blue"),
+                      labels = p03.5lab) +
+  scale_linetype_manual("", values=c(1,1,3,3), labels = p03.5lab) +
+  theme(legend.position="top")+
+  guides(color = guide_legend(nrow = 2))
+
+p03.5
+```
+
+#### 3.5.2 Panel B: transformed assay result fig
+```{r}
+p03.3
+```
+
+#### 3.5.3 Panel C: rolling incidence fig
 
 
 
