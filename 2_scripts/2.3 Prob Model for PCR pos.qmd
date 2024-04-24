@@ -1002,7 +1002,47 @@ p03.3
 ```
 
 #### 3.5.3 Panel C: rolling incidence fig
+```{r}
+## recorder the dataset, relevel inf variable
+tb_melt_2$inf.f<-as.factor(tb_melt_2$inf)
+tb_melt_2<-transform(tb_melt_2, 
+                     inf.f = factor(inf.f, levels = c("ever_inf", "less_9_month",
+                                                     "less_6_month", "less_3_month"))
+)
+# replace with friendly name for figuers
+levels(tb_melt_2$inf.f)<-c("ever infected", "infected <9 month",
+                           "infected <6 month", "infected <3 month")
+## make figures p07
+p07<-tb_melt_2 %>%
+  ggplot(aes(x=samplemonth, y=prop, group=data, colour=data)) +
+  geom_point() +
+  geom_line()  +
+  theme_bw()   +
+  xlab("Time of Sample Collection") + 
+  ylab("Rolling Incidence Proportion") +
+  scale_colour_manual("", values = c("red", "blue"))
+p07
+  
 
+# add facet names
+p07<-p07 + facet_wrap(~inf.f, nrow=1) +
+    theme(axis.text.x = element_text(angle = 30, vjust=0.8, hjust=0.8))
+p07
+```
+
+#### 3.5.4 Make all three figures into one
+```{r}
+# use cowplot package
+p08.upper<-cowplot::plot_grid(p03.5, p03.3 + ylab(""), nrow=1,
+                              labels = c("A", "B"))
+
+png(file="../4_output/figs/Fig.X1 AABB Conference.png", 
+    width=2400, height=1800, res=300)
+cowplot::plot_grid(p08.upper, p07 + theme(legend.position = c(0.95, 0.93),
+                                          legend.background = element_blank()),
+                   labels = c("","C"), ncol=1, rel_heights = c(1, 1))
+dev.off()
+```
 
 
 
