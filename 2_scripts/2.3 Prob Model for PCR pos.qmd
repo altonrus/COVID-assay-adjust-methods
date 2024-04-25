@@ -854,6 +854,18 @@ p03.3<-tb_alberta %>%
 
 p03.3
 ```
+The gap between CBS and APL seropositivity estimates for October 2023 was X% using raw seropositivity, Y% after transforming CBS to Abbott, and Z% after transforming APL to Roche.
+
+```{r}
+# How gaps were calculated: 
+# X: Oct 2023, btw raw CBS & APL, Y: APL vs transformed CBS, Z: CBS vs transformed APL
+tb_alberta %>%
+  select(data, samplemonth, prop, raw) %>%
+  .[.$samplemonth == as.yearmon("Oct 2022"),] %>%
+  mutate(X = .$prop[4] - .$prop[1]) %>%
+  mutate(Y = .$prop[3] - .$prop[1]) %>%
+  mutate(Z = .$prop[4] - .$prop[2])
+```
 
 
 #### 3.4 Plot the correlation btw Roche-N and Abbott-N:
@@ -1010,8 +1022,8 @@ tb_melt_2<-transform(tb_melt_2,
                                                      "less_6_month", "less_3_month"))
 )
 # replace with friendly name for figuers
-levels(tb_melt_2$inf.f)<-c("ever infected", "infected <9 month",
-                           "infected <6 month", "infected <3 month")
+levels(tb_melt_2$inf.f)<-c("Ever infected", "Infected <9 months ago",
+                           "Infected <6 months ago", "Infected <3 months ago")
 ## make figures p07
 p07<-tb_melt_2 %>%
   ggplot(aes(x=samplemonth, y=prop, group=data, colour=data)) +
@@ -1033,7 +1045,8 @@ p07
 #### 3.5.4 Make all three figures into one
 ```{r}
 # use cowplot package
-p08.upper<-cowplot::plot_grid(p03.5, p03.3 + ylab(""), nrow=1,
+p08.upper<-cowplot::plot_grid(p03.5 + xlab ("") + ylab("Seroprevalence"), 
+                              p03.3 + xlab ("") + ylab(""), nrow=1,
                               labels = c("A", "B"))
 
 png(file="../4_output/figs/Fig.X1 AABB Conference.png", 
