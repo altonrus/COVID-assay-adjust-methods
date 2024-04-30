@@ -1055,13 +1055,21 @@ cowplot::plot_grid(p08.upper, p07 + theme(legend.position = c(0.95, 0.93),
                                           legend.background = element_blank()),
                    labels = c("","C"), ncol=1, rel_heights = c(1, 1))
 dev.off()
+
+# tiff format
+tiff(file="../4_output/figs/Fig.X1 AABB Conference.tiff", 
+    width=2400, height=1800, res=300, compression = "zip")
+cowplot::plot_grid(p08.upper, p07 + theme(legend.position = c(0.95, 0.93),
+                                          legend.background = element_blank()),
+                   labels = c("","C"), ncol=1, rel_heights = c(1, 1))
+dev.off()
 ```
 
 
 
 ## Part IV Misc Analysis
 
-1. About the age dist in training data and CBS: The difference on age distribution might be a potential problem. Generally speaking, blood donors (CBS, FR-Leon data) is relatively older, while Covid-19 convalescent patients are younger.
+#### 4.1. About the age dist in training data and CBS: The difference on age distribution might be a potential problem. Generally speaking, blood donors (CBS, FR-Leon data) is relatively older, while Covid-19 convalescent patients are younger.
 ```{r}
 # The FR-Leon data
 summary(dta_all[dta_all$study==1,]$age) # mean=46, median = 48
@@ -1155,4 +1163,59 @@ mnlm03.s<-multinom(relevel(as.factor(time_pso), ref = "never_inf") ~ log_roche_n
 summary(mnlm03.s)
 ```
 
+#### 4.2 Sensitivity Analysis
+
+Both Alton and Yuan have address the importance of doing sensitivity analysis for the transformation models (Roche--Abbott). Originally we trained those two models with external matched data (Jamaica-Osaka-UK). We wonder if model would fit similarity with our own matched data in CBS.
+
+#### 4.2.1 Using Jamaica-Osaka-UK data:
+```{r}
+# Roche-> Abbott
+summary(lm01)
+
+# Abbott-> Roche
+
+summary(lm01r)
+```
+#### 4.2.2 Refit using CBS matched data
+```{r}
+CBSs2<-CBSs %>%
+  .[!is.na(.$roche_n) & !is.na(.$abbott_n),] #CBS matched data
+
+CBSs2$log_abbott_n<-log(CBSs2$abbott_n)
+CBSs2$log_roche_n<-log(CBSs2$roche_n)
+
+# clean inf values with log(0.01)
+CBSs2$log_abbott_n[CBSs2$log_abbott_n==-Inf]<-log(0.01)
+
+# lm05: Roche--> Abbott, using matched CBS
+lm05<-glm(log_abbott_n ~ log_roche_n, 
+          family = "gaussian",
+          data = CBSs2)
+summary(lm05)
+
+# lm05r: Abbott--> Roche, using matched CBS
+lm05r<-glm(log_roche_n~log_abbott_n , 
+          family = "gaussian",
+          data = CBSs2)
+summary(lm05r)
+# model 5r should be focused
+```
+#### Adjusting the weights of those with negative test results
+```{r}
+# add a indicator for positivity of two assays
+CBSs2$ppnn[CBSs2$abbott_n > 1.4 & CBSs2$roche_n > 1]<-"pp"
+CBSs2$ppnn[CBSs2$abbott_n > 1.4 & CBSs2$roche_n < 1]<-"np"
+CBSs2$ppnn[CBSs2$abbott_n <=1.4 & CBSs2$roche_n < 1]<-"nn"
+CBSs2$ppnn[CBSs2$abbott_n <=1.4 & CBSs2$roche_n > 1]<-"pn"
+
+CBSs2$samplewt <- rep(1, length(CBSs2$pid))
+CBSs2$samplewt[CBSs2$ppnn %in% c("np","nn")]<-0.01
+
+# refit model 05r
+lm05r.w<-glm(log_roche_n~log_abbott_n , 
+          family = "gaussian", weights = samplewt,
+          data = CBSs2)
+summary(lm05r.w)
+# after down-weighting, the betas became closer to 
+```
 
