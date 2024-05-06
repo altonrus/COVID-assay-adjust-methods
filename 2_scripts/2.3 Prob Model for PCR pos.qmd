@@ -1006,11 +1006,21 @@ p03.5<-tb_ab_rg %>%
   guides(color = guide_legend(nrow = 2))
 
 p03.5
+
+png(file="../4_output/figs/Fig.1 Seroprevalence.png", 
+    width=2400, height=1800, res=300)
+p03.5
+dev.off()
 ```
 
 #### 3.5.2 Panel B: transformed assay result fig
 ```{r}
 p03.3
+
+png(file="../4_output/figs/Fig.2 Transformed.png", 
+    width=2400, height=1800, res=300)
+p03.3
+dev.off()
 ```
 
 #### 3.5.3 Panel C: rolling incidence fig
@@ -1040,6 +1050,11 @@ p07
 p07<-p07 + facet_wrap(~inf.f, nrow=1) +
     theme(axis.text.x = element_text(angle = 30, vjust=0.8, hjust=0.8))
 p07
+
+png(file="../4_output/figs/Fig.3 Rolling-Incidence.png", 
+    width=2400, height=1800, res=300)
+p07 + facet_wrap(~inf.f, nrow=2)
+dev.off()
 ```
 
 #### 3.5.4 Make all three figures into one
