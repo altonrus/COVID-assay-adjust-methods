@@ -1215,6 +1215,7 @@ lm05r<-glm(log_roche_n~log_abbott_n ,
 summary(lm05r)
 # model 5r should be focused
 ```
+
 #### Adjusting the weights of those with negative test results
 ```{r}
 # add a indicator for positivity of two assays
@@ -1232,5 +1233,94 @@ lm05r.w<-glm(log_roche_n~log_abbott_n ,
           data = CBSs2)
 summary(lm05r.w)
 # after down-weighting, the betas became closer to 
+```
+
+#### 4.2.3 Add regression lines to the figure
+```{r}
+# Modify p04 for sensitivity analysis
+p04<-dta_all %>%
+  .[!is.na(.$log_abbott_n) & !is.na(.$log_roche_n),] %>%
+  ggplot(aes(x=log_roche_n, y=log_abbott_n, 
+             study, colour=study)) +
+  geom_point(aes(colour=as.factor(study)), alpha=0.5) +
+  geom_vline(xintercept = 0, linewidth=1.0, linetype="dotted", col="darkgrey") +
+  geom_hline(yintercept = log(1.4), linewidth=1.0, linetype="dotted", col="darkgrey") +
+  xlab("Roche Anti-N S/Co ratio (log scale)") + 
+  ylab("Abbott Anti-N S/Co ratio (log scale)") +
+  labs(color='') +
+  scale_colour_manual(labels = c("Jamaica (-)", "Osaka, JP (-)",
+                                 "Osaka, JP (+)","UK (+)"), 
+                      values = c("red", "blue", "darkgreen", "purple")) +
+  theme_bw() + 
+  theme(legend.position = "bottom")
+
+p04.2a<-p04 + geom_abline(aes(intercept = -1.60, slope = 0.68, color="Roche->Abbott",),
+                  size=0.8) +
+      geom_abline(aes(intercept = -1.68, slope = 0.78, color="Abbott->Roche",), 
+                  size=0.8) +
+scale_colour_manual(values = c("red", "blue", "darkgreen", "purple","blue","red"),
+                    guide = guide_legend(nrow = 3,
+                            override.aes = list(
+                            linetype = c(rep("blank", 4), "solid", "solid"),
+                            shape = c(rep(16, 4), NA, NA)))) +
+     ggtitle("Jamaica-Osaka-UK matched data")
+```
+```{r}
+# Calculating Beta estimates for model 01r-reverted
+(-1)*lm01r$coefficients[1]/lm01r$coefficients[2] #beta_0
+1/lm01r$coefficients[2]                          #beta_1
+
+# Calculating Beta estimates for model 05r-reverted
+(-1)*lm05r$coefficients[1]/lm05r$coefficients[2] #beta_0
+1/lm05r$coefficients[2]                          #beta_1
+
+# Calculating Beta estimates for model 05rw-reverted
+(-1)*lm05r.w$coefficients[1]/lm05r.w$coefficients[2] #beta_0
+1/lm05r.w$coefficients[2]                            #beta_1
+```
+```{r}
+# Refit models for CBS data, modify p05
+p04.2b<-dta_CBS %>%
+  .[!is.na(.$log_abbott_n) & !is.na(.$log_roche_n) &
+    .$study=="CBS matched",] %>%
+  ggplot(aes(x=log_roche_n, y=log_abbott_n, 
+             study, colour=study)) +
+  geom_point(aes(colour=as.factor(study)), alpha=0.40) +
+  geom_vline(xintercept = 0, linewidth=1.0, linetype="dotted", col="darkgrey") +
+  geom_hline(yintercept = log(1.4), linewidth=1.0, linetype="dotted", col="darkgrey") +
+  xlab("Roche Anti-N S/Co ratio (log scale)") + 
+  ylab("Abbott Anti-N S/Co ratio (log scale)") +
+  labs(color='') +
+  scale_colour_manual(labels = c("CBS matched"), 
+                      values = c("lightblue")) +
+  theme_bw() + 
+  theme(legend.position = "bottom")
+
+p04.2b<-p04.2b + geom_abline(aes(intercept = -1.87, slope = 0.64, color="Roche->Abbott",),
+                  size=0.8) +
+         geom_abline(aes(intercept = 2.02, slope = 2.26, color="Abbott->Roche",), 
+                  size=0.8) +
+         geom_abline(aes(intercept = -2.14, slope = 0.85, 
+                         color="Abbott->Roche (down-weighted)",), 
+                  size=0.8, linetype=2) +
+         scale_colour_manual(values = c("lightblue","blue","red","red"),
+                             guide = guide_legend(nrow=2,
+                             override.aes = list(
+                             linetype = c(rep("blank", 1), "solid", "solid","dashed"),
+                             shape = c(rep(16, 1), NA, NA, NA))
+                             )) +
+         ggtitle("CBS matched data")
+p04.2b
+```
+
+```{r}
+## make two into one paneled fig
+png(file="../4_output/figs/Fig.S1 Sensitivity Analysis.png", 
+    width=2400, height=1440, res=300)
+cowplot::plot_grid(p04.2a, 
+                   p04.2b  + ylab(""), nrow=1,
+                   align = 'h',
+                   labels = c("A", "B"))
+dev.off()
 ```
 
