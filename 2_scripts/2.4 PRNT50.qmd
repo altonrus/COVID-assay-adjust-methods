@@ -1,0 +1,162 @@
+---
+title: "2.4 PRNT50"
+format: html
+editor: visual
+author: J.Chen (let me know if you run into any troubles with those codes)
+---
+
+## Quarto
+
+This qmd file including the codes we utilized for estimating the proportion of the population having Ab titer high enough to protect them from possible future infections. The estimation is based on quant anti-S assay results (CBS-Roche-S and APL-Abbott-S-RBD) and the corresponding Ab cutoff related to PRNT50 (1:118).
+
+## Running Code
+
+## Load dataset
+
+```{r}
+# The CBS Data, extracted using "CITF_CBS_desc_stats.Rmd"
+load(file = "../1_data/private/CBSs.RData") # a clean subset of CBS
+# Notes: Y.Yuan confirmed on 01-May-2024 the ver 2023-11-30 of CBS is no longer the last ver. The most recent CBS data has 2023 data included but it's not adding new info to our project so we are still using the 2023-11-30 ver of CBS.
+
+# APL Data
+load()
+load(file = "../1_data/private/APLs.RData") # a clean subset
+```
+
+## Load necessary paks
+
+```{r}
+library(dplyr)         # Data management
+#library(reshape2)      # for melt() function
+library(ggplot2)       # ggplot
+library(zoo)           # for year-month format
+```
+
+## 1. Clean the APL data
+```{r}
+APLs<-merge(APLs, select(RFD4682_e, order_ID, 
+                   'RBD-IgGII_RESULT', `RBD-IgGII_INTERP`,`RBD-IgGII_RESULT_DATE`
+                   ), by="order_ID",all=T)
+colnames(APLs)<-c(names(APLs)[1:15], "abbott_s", "pos_abbott_s", "month_abbott_s")
+APLs$abb_s_index<-grepl("index", APLs$abbott_s, ignore.case = T)
+APLs$abb_s_AU<-grepl("ml", APLs$abbott_s, ignore.case = T)
+table(APLs$abb_s_index, APLs$abb_s_AU)
+# 36 samples missing abbott_s info
+APLs$abb_s_index[APLs$abb_s_index==0 & APLs$abb_s_AU==0]<-NA
+APLs$abb_s_AU[is.na(APLs$abb_s_index)]<-NA
+
+APLs$abb_s_AU<-as.numeric(APLs$abb_s_AU)
+APLs$abb_s_index<-as.numeric(APLs$abb_s_index)
+table(APLs$abb_s_index, APLs$abb_s_AU, useNA = 'ifany')
+
+# remove units
+APLs$abbott_s<-gsub('[a-z]', '', APLs$abbott_s)
+APLs$abbott_s<-gsub('[A-Z]', '', APLs$abbott_s)
+APLs$abbott_s<-gsub('[/<>]', '', APLs$abbott_s)
+APLs$abbott_s<-as.numeric(APLs$abbott_s)
+
+# check the COI
+summary(APLs[APLs$abb_s_index==1 & APLs$pos_abbott_s=="Positive",]$abbott_s)
+# 1.4 - 9.6 the COI is 1.4 not 1?
+summary(APLs[APLs$abb_s_index==1 & APLs$pos_abbott_s=="Negative",]$abbott_s)
+# 8.1 index but negative?
+
+summary(APLs[APLs$abb_s_AU==1 & APLs$pos_abbott_s=="Positive",]$abbott_s)
+# 50 - 800000 the COI = 50 good
+summary(APLs[APLs$abb_s_AU==1 & APLs$pos_abbott_s=="Negative",]$abbott_s)
+# 0-49, COI = 50 good
+
+# COI for anti_n
+summary(APLs[APLs$pos_abbott==1 & !is.na(APLs$abbott_n),]$abbott_n)
+# 1.4 - 14.19 the COI = 1.4
+summary(APLs[APLs$pos_abbott==0 & !is.na(APLs$abbott_n),]$abbott_n)
+# 0.001 - 1.39
+
+table(APLs$pos_abbott)
+```
+```{r}
+# abbott_n misclassified as abbott_s with index?
+APLs %>%
+  .[is.na(.$abbott_n) & .$abb_s_index==1 & !is.na(.$abb_s_index),] # N=104946
+
+APLs %>%
+  .[is.na(.$abbott_n) & .$abb_s_AU==1 & !is.na(.$abb_s_AU),] # N=69108
+
+APLs %>%
+  .[!is.na(.$abbott_n) & .$abb_s_index==TRUE & !is.na(.$abb_s_index),] # N=0
+
+APLs %>%
+  .[!is.na(.$abbott_n) & .$abb_s_AU==1 & !is.na(.$abb_s_AU),]  # N=40690
+
+APLs %>%
+  .[!is.na(.$abbott_n) & is.na(.$abb_s_AU),]                   # N=36
+
+table(is.na(APLs[APLs$abb_s_AU==1,]$abbott_n))
+
+# month of data collection for those five groups:
+# Group 1: "Abbott-S" (Index) only
+fivenum(APLs[APLs$abb_s_index==1,]$samplemonth, na.rm = T)
+
+# Group 2: True Abbott-S (AU) only
+fivenum(APLs[is.na(APLs$abbott_n) & APLs$abb_s_AU==1,]$samplemonth, na.rm = T)
+
+# Group 3: True Abbott-S (AU) and Abbott-N?
+fivenum(APLs[!is.na(APLs$abbott_n) & APLs$abb_s_AU==1,]$samplemonth, na.rm = T)
+
+# Group 4: no available anti-S data, only Abbott-N
+fivenum(APLs[!is.na(APLs$abbott_n) & is.na(APLs$abb_s_AU),]$samplemonth, na.rm = T)
+```
+**Notes**: So no matter what it really is it can't be Abbott-S-RBD and shall not be included in anti-S analysis. 
+
+## 2. Applying the COI 
+
+#### 2.1 Apply COI to APL (Abbott-S) data
+```{r}
+APLs$pos_abbott_s2<-rep(NA, 214780)
+APLs$pos_abbott_s2[APLs$abb_s_AU==1 & !is.na(APLs$abb_s_AU) &
+                   APLs$abbott_s>=402.36 & !is.na(APLs$abbott_s)]<-"Positive"
+APLs$pos_abbott_s2[APLs$abb_s_AU==1 & !is.na(APLs$abb_s_AU) &
+                     APLs$abbott_s<402.36 & !is.na(APLs$abbott_s)]<-"Negative"
+table(APLs$pos_abbott_s2, useNA = 'ifany')
+
+table(APLs$pos_abbott_s, APLs$pos_abbott_s2, useNA = 'ifany')
+```
+## 3. Making the Plot
+
+## 3.1 Prepare the melt data
+```{r}
+# recode pos/neg
+APLs$pos_abbott_s[APLs$pos_abbott_s=="Positive"]<-1
+APLs$pos_abbott_s[APLs$pos_abbott_s=="Negative"]<-0
+APLs$pos_abbott_s<-as.numeric(APLs$pos_abbott_s)
+APLs$pos_abbott_s2[APLs$pos_abbott_s2=="Positive"]<-1
+APLs$pos_abbott_s2[APLs$pos_abbott_s2=="Negative"]<-0
+APLs$pos_abbott_s2<-as.numeric(APLs$pos_abbott_s2)
+
+tb_abbs<-APLs %>%
+  .[.$abb_s_AU==1,] %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_abbott_s= sum(pos_abbott_s, na.rm = T), 
+            pos_abbott_s2= sum(pos_abbott_s2, na.rm = T)
+            )
+tb_abbs$prop.abbs1<-tb_abbs$pos_abbott_s/tb_abbs$n
+tb_abbs$prop.abbs2<-tb_abbs$pos_abbott_s2/tb_abbs$n
+
+# clean NAs
+tb_abbs<-tb_abbs[!is.na(tb_abbs$samplemonth),]
+
+tb_abbs_melt<-reshape2::melt(select(tb_abbs, -c(2:4)), 
+                        id.vars = c("samplemonth"),
+                        variable.name = "COI",
+                        value.name = "prop")
+
+p09<-tb_abbs_melt %>%
+  ggplot(aes(x=samplemonth, y=prop, group=COI, colour=COI)) +
+  geom_point(aes(colour=COI)) +
+  geom_line(aes(colour=COI))  +
+  theme_bw() 
+p09
+```
+
+
