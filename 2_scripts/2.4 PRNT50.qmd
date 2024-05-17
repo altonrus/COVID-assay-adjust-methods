@@ -121,6 +121,12 @@ table(APLs$pos_abbott_s2, useNA = 'ifany')
 
 table(APLs$pos_abbott_s, APLs$pos_abbott_s2, useNA = 'ifany')
 ```
+### Apply COI to CBS (Roche-S) data
+```{r}
+
+```
+
+
 ## 3. Making the Plot
 
 ## 3.1 Prepare the melt data
@@ -150,7 +156,11 @@ tb_abbs_melt<-reshape2::melt(select(tb_abbs, -c(2:4)),
                         id.vars = c("samplemonth"),
                         variable.name = "COI",
                         value.name = "prop")
+```
 
+## 3.2 Making the Plot
+```{r}
+# APL
 p09<-tb_abbs_melt %>%
   ggplot(aes(x=samplemonth, y=prop, group=COI, colour=COI)) +
   geom_point(aes(colour=COI)) +
