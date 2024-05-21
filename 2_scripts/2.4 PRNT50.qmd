@@ -123,13 +123,126 @@ table(APLs$pos_abbott_s, APLs$pos_abbott_s2, useNA = 'ifany')
 ```
 ### Apply COI to CBS (Roche-S) data
 ```{r}
+CBSs$pos_roche_s<-CBS$interp_roche_s
+CBSs_AB<-CBSs[CBSs$province=="AB",]
 
+# CBS used Roche-S, one ob has missing values
+table(is.na(CBSs_AB$roche_s))
+
+# Roche COI: 0.8 & 178.81
+CBSs_AB$pos_roche_s2<-rep(NA, 124008)
+CBSs_AB$pos_roche_s2[CBSs_AB$roche_s>=178.81 & !is.na(CBSs_AB$roche_s)]<-1
+CBSs_AB$pos_roche_s2[CBSs_AB$roche_s< 178.81 & !is.na(CBSs_AB$roche_s)]<-0
+table(CBSs_AB$pos_roche_s2, useNA = 'ifany')
+
+# Comparison btw COI 0.8 & 178.81
+table(CBSs_AB$pos_roche_s, CBSs_AB$pos_roche_s2, useNA = 'ifany')
+```
+**Notes:** After increasing the COI from 0.8 to 178.81, 6732 of 108,514 (6.20%) samples were re-categorized as negative. The gap is smaller than what we observed in APL data, which has gaps of around 10%.
+
+#### 2.2 Roche-S <--> Abbott-S transformation
+
+#### 2.2.1 Apply Transformation
+```{r}
+# Abbott-S = 82.5 + 15.54*Roche-S
+# Source: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8552734/
+
+# APL
+APLs$roche_st<-(APLs$abbott_s-82.5)/15.54
+summary(APLs$roche_st)
+
+## add positivity, COI=0.8
+APLs$pos_roche_st<-rep(NA, 214780)
+APLs$pos_roche_st[APLs$abb_s_AU==1 & !is.na(APLs$abb_s_AU) &
+                   APLs$roche_st>=0.8 & !is.na(APLs$roche_st)]<-1
+APLs$pos_roche_st[APLs$abb_s_AU==1 & !is.na(APLs$abb_s_AU) &
+                     APLs$roche_st<0.8 & !is.na(APLs$roche_st)]<-0
+table(APLs$pos_roche_st, useNA = 'ifany')
+
+## add immunity, COI = 178.81
+APLs$pos_roche_st2<-rep(NA, 214780)
+APLs$pos_roche_st2[APLs$abb_s_AU==1 & !is.na(APLs$abb_s_AU) &
+                   APLs$roche_st>=178.81 & !is.na(APLs$roche_st)]<-1
+APLs$pos_roche_st2[APLs$abb_s_AU==1 & !is.na(APLs$abb_s_AU) &
+                     APLs$roche_st<178.81 & !is.na(APLs$roche_st)]<-0
+table(APLs$pos_roche_st, APLs$pos_roche_st2, useNA = 'ifany')
+```
+```{r}
+# CBS
+CBSs_AB$abbott_st<-82.5+CBSs_AB$roche_s*15.54
+summary(CBSs_AB$abbott_st)
+
+## add positivity, COI=50, all positive (COI lower than min after transformation)
+CBSs_AB$pos_abbott_st<-rep(NA, 124008)
+CBSs_AB$pos_abbott_st[CBSs_AB$abbott_st>=50 & !is.na(CBSs_AB$abbott_st)]<-1
+CBSs_AB$pos_abbott_st[CBSs_AB$abbott_st<50 & !is.na(CBSs_AB$abbott_st)]<-0
+table(CBSs_AB$pos_abbott_st, useNA = 'ifany')
+
+## add immunity, COI = 178.81
+CBSs_AB$pos_abbott_st2<-rep(NA, 124008)
+CBSs_AB$pos_abbott_st2[CBSs_AB$abbott_st>=402.36 & !is.na(CBSs_AB$abbott_st)]<-1
+CBSs_AB$pos_abbott_st2[CBSs_AB$abbott_st<402.36 & !is.na(CBSs_AB$abbott_st)]<-0
+table(CBSs_AB$pos_abbott_st, CBSs_AB$pos_abbott_st2, useNA = 'ifany')
+```
+#### 2.2.2 Creating merged dta
+```{r}
+tb_abbst<-APLs %>%
+  .[.$abb_s_AU==1,] %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_roche_st= sum(pos_roche_st, na.rm = T), 
+            pos_roche_st2= sum(pos_roche_st2, na.rm = T)
+            )
+tb_abbst$prop.rost1<-tb_abbst$pos_roche_st/tb_abbst$n
+tb_abbst$prop.rost2<-tb_abbst$pos_roche_st2/tb_abbst$n
+
+# merge abbs & abbst table
+tb_abbs<-merge(tb_abbs, select(tb_abbst, -c(2:4)), all=T, by="samplemonth")
+
+# clean NAs
+tb_abbs<-tb_abbs[!is.na(tb_abbs$samplemonth),]
+
+tb_melt_t1<-reshape2::melt(select(tb_abbs, samplemonth, prop.abbs1, prop.rost1, study), 
+                        id.vars = c("samplemonth", "study"),
+                        variable.name = "COI",
+                        value.name = "prop")
+
+tb_melt_t2<-reshape2::melt(select(tb_abbs, samplemonth, prop.abbs2, prop.rost2, study), 
+                        id.vars = c("samplemonth", "study"),
+                        variable.name = "COI",
+                        value.name = "prop")
+```
+
+```{r}
+tb_rost<-CBSs_AB %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_abbott_st= sum(pos_abbott_st, na.rm = T), 
+            pos_abbott_st2= sum(pos_abbott_st2, na.rm = T)
+            )
+tb_rost$prop.abbst1<-tb_rost$pos_abbott_st/tb_rost$n
+tb_rost$prop.abbst2<-tb_rost$pos_abbott_st2/tb_rost$n
+
+# merge abbs & abbst table
+tb_ros<-merge(tb_ros, select(tb_rost, -c(2:4)), all=T, by="samplemonth")
+
+# clean NAs
+tb_ros<-tb_ros[!is.na(tb_ros$samplemonth),]
+
+tb_melt_t3<-reshape2::melt(select(tb_ros, samplemonth, prop.ros1, prop.abbst1, study),
+                        id.vars = c("samplemonth", "study"),
+                        variable.name = "COI",
+                        value.name = "prop")
+tb_melt_t4<-reshape2::melt(select(tb_ros, samplemonth, prop.ros2, prop.abbst2, study),
+                        id.vars = c("samplemonth", "study"),
+                        variable.name = "COI",
+                        value.name = "prop")
 ```
 
 
 ## 3. Making the Plot
 
-## 3.1 Prepare the melt data
+## 3.1.1 Prepare the melt data: APL
 ```{r}
 # recode pos/neg
 APLs$pos_abbott_s[APLs$pos_abbott_s=="Positive"]<-1
@@ -158,7 +271,27 @@ tb_abbs_melt<-reshape2::melt(select(tb_abbs, -c(2:4)),
                         value.name = "prop")
 ```
 
+## 3.1.2 Prepare the melt data: CBS
+```{r}
+tb_ros<-CBSs_AB %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_roche_s= sum(pos_roche_s, na.rm = T), 
+            pos_roche_s2= sum(pos_roche_s2, na.rm = T)
+            )
+tb_ros$prop.ros1<-tb_ros$pos_roche_s/tb_ros$n
+tb_ros$prop.ros2<-tb_ros$pos_roche_s2/tb_ros$n
+
+tb_ros_melt<-reshape2::melt(select(tb_ros, -c(2:4)), 
+                        id.vars = c("samplemonth"),
+                        variable.name = "COI",
+                        value.name = "prop")
+```
+
+
 ## 3.2 Making the Plot
+
+#### 3.2.1 Making the plot seperately for CBS & APL
 ```{r}
 # APL
 p09<-tb_abbs_melt %>%
@@ -167,6 +300,105 @@ p09<-tb_abbs_melt %>%
   geom_line(aes(colour=COI))  +
   theme_bw() 
 p09
+
+# CBS
+p09b<-tb_ros_melt %>%
+  ggplot(aes(x=samplemonth, y=prop, group=COI, colour=COI)) +
+  geom_point(aes(colour=COI)) +
+  geom_line(aes(colour=COI))  +
+  theme_bw() 
+p09b
+```
+#### 3.2.2 Making APL & CBS in one plot
+```{r}
+# creating merged summary tab
+tb_abbs_melt$study<-rep("APL", length(tb_abbs_melt$samplemonth))
+tb_ros_melt$study<-rep("CBS", length(tb_ros_melt$samplemonth))
+
+tb_APLCBS2<-rbind.data.frame(tb_abbs_melt, tb_ros_melt)
+
+tb_APLCBS2$COI<-as.character(tb_APLCBS2$COI)
+tb_APLCBS2$COI[tb_APLCBS2$COI=="prop.abbs1"]<-"50"
+tb_APLCBS2$COI[tb_APLCBS2$COI=="prop.abbs2"]<-"402.36"
+tb_APLCBS2$COI[tb_APLCBS2$COI=="prop.ros1"]<-"0.8"
+tb_APLCBS2$COI[tb_APLCBS2$COI=="prop.ros2"]<-"178.81"
+
+tb_APLCBS2$COI_ty[tb_APLCBS2$COI %in% c("50", "0.8")]<-"Positivity"
+tb_APLCBS2$COI_ty[tb_APLCBS2$COI %in% c("402.36", "178.81")]<-"Immunity"
 ```
 
+```{r}
+# ggplot
+p09.lab<-c("APL-Abbott (COI=402)", "CBS-Roche (COI=179)", 
+           "APL-Abbott (COI=50)", "CBS-Roche (COI=0.8)")
+p09c<-tb_APLCBS2 %>%
+  ggplot(aes(x=samplemonth, y=prop, colour=interaction(study, COI_ty),
+                                    linetype=interaction(study, COI_ty))) +
+  geom_point() +
+  geom_line()  +
+  theme_bw() +
+  xlab("Time of Sample Collection") + 
+  ylab("Proportion")+ 
+  scale_colour_manual("", values = c("red", "blue", "red", "blue"),
+                      labels = p09.lab)+
+  scale_linetype_manual("", values=c(3,3,1,1), labels = p09.lab) 
+#  theme(legend.position="top")+
+#  guides(color = guide_legend(nrow = 2))
+
+p09c
+```
+#### 3.2.3 Plot for transformed curved
+```{r}
+# Plot 1
+p09d.dta<-rbind.data.frame(tb_melt_t1, tb_melt_t3)
+
+p09d.dta$COI<-as.character(p09d.dta$COI)
+p09d.dta$COI_ty[p09d.dta$COI %in% c("prop.abbs1", "prop.ros1")]<-"Raw"
+p09d.dta$COI_ty[p09d.dta$COI %in% c("prop.abbst1", "prop.rost1")]<-"Transformed"
+
+p09d.lab<-c("APL-Abbott (COI=50)", "CBS-Roche (COI=0.8)", 
+           "APL-Roche (COI=0.8)", "CBS-Abbott (COI=50)")
+p09d<-p09d.dta %>%
+  ggplot(aes(x=samplemonth, y=prop, colour=interaction(study, COI_ty),
+                                    linetype=interaction(study, COI_ty))) +
+  geom_point() +
+  geom_line()  +
+  theme_bw() +
+  xlab("Time of Sample Collection") + 
+  ylab("Proportion")+ 
+  scale_colour_manual("", values = c("red", "blue", "red", "blue"),
+                      labels = p09d.lab)+
+  scale_linetype_manual("", values=c(1,1,3,3), labels = p09d.lab) 
+#  theme(legend.position="top")+
+#  guides(color = guide_legend(nrow = 2))
+
+p09d
+```
+
+```{r}
+# Plot 2
+p09e.dta<-rbind.data.frame(tb_melt_t2, tb_melt_t4)
+
+p09e.dta$COI<-as.character(p09e.dta$COI)
+p09e.dta$COI_ty[p09e.dta$COI %in% c("prop.abbs2", "prop.ros2")]<-"Raw"
+p09e.dta$COI_ty[p09e.dta$COI %in% c("prop.abbst2", "prop.rost2")]<-"Transformed"
+
+p09e.lab<-c("APL-Abbott (COI=402)", "CBS-Roche (COI=179)", 
+           "APL-Roche (COI=179)", "CBS-Abbott (COI=402)")
+p09e<-p09e.dta %>%
+  ggplot(aes(x=samplemonth, y=prop, colour=interaction(study, COI_ty),
+                                    linetype=interaction(study, COI_ty))) +
+  geom_point() +
+  geom_line()  +
+  theme_bw() +
+  xlab("Time of Sample Collection") + 
+  ylab("Proportion")+ 
+  scale_colour_manual("", values = c("red", "blue", "red", "blue"),
+                      labels = p09e.lab)+
+  scale_linetype_manual("", values=c(1,1,3,3), labels = p09e.lab) 
+#  theme(legend.position="top")+
+#  guides(color = guide_legend(nrow = 2))
+
+p09e
+```
 
