@@ -401,4 +401,123 @@ p09e<-p09e.dta %>%
 
 p09e
 ```
+## 4 Misc Analysis
+
+#### 4.1 Sensitivity Analysis
+```{r}
+# Add vax variable
+APLs<-merge(APLs, select(RFD4682_e, order_ID, VACCINATION_STATUS),
+      by="order_ID", all=T)
+
+APLs$vax<-APLs$VACCINATION_STATUS
+APLs<-select(APLs, -c("VACCINATION_STATUS"))
+table(APLs$vax, useNA = 'ifany')
+
+# Add days since imm (vax)
+APLs<-merge(APLs, select(RFD4682_e, order_ID, DAYS_SINCE_IMM),
+      by="order_ID", all=T)
+```
+
+```{r}
+# re-do the melt data
+tb_abbsv<-APLs %>%
+  .[.$abb_s_AU==1 & !(.$vax %in% c("Not Immunized", "Pre-Immunization")) &
+    .$DAYS_SINCE_IMM>=28 & !is.na(.$DAYS_SINCE_IMM),] %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_abbott_s= sum(pos_abbott_s, na.rm = T), 
+            pos_abbott_s2= sum(pos_abbott_s2, na.rm = T)
+            )
+tb_abbsv$prop.abbs1<-tb_abbsv$pos_abbott_s/tb_abbsv$n
+tb_abbsv$prop.abbs2<-tb_abbsv$pos_abbott_s2/tb_abbsv$n
+
+# clean NAs
+tb_abbsv<-tb_abbsv[!is.na(tb_abbsv$samplemonth),]
+
+tb_abbsv_melt<-reshape2::melt(select(tb_abbsv, -c(2:4)), 
+                        id.vars = c("samplemonth"),
+                        variable.name = "COI",
+                        value.name = "prop")
+```
+
+```{r}
+# re-do the plot
+# APL vax only
+p09v0<-tb_abbsv_melt %>%
+  ggplot(aes(x=samplemonth, y=prop, group=COI, colour=COI)) +
+  geom_point(aes(colour=COI)) +
+  geom_line(aes(colour=COI))  +
+  theme_bw() + 
+  ylim(c(0,1))
+p09v0
+```
+## 4.2 The vaccination rate among APL
+The APL data Carmen shared with us has vaccination info, the 2024 Jan ver of it even has the vax brand. While the CBS data we have doesnot include vax info. However, a paper written by Sheila has the vax% of those in CBS data, which we can use for comparison on vax%.
+
+```{r}
+# create vax% cat var
+APLs$vax_cat<-rep(NA, 214780)
+APLs$vax_cat[APLs$vax %in% c("1 Dose","1-2 Doses","2 Doses","3 Doses",
+                             "4 Doses")]<-1
+APLs$vax_cat[APLs$vax %in% c("Not Immunized", "Pre-Immunization")]<-0
+table(APLs$vax, APLs$vax_cat, useNA = 'ifany')
+```
+```{r}
+# create merged data
+tb_vax<-APLs %>%
+  .[.$abb_s_AU==1,] %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            n_vax= sum(vax_cat, na.rm = T)
+            )
+tb_vax$prop.vax<-tb_vax$n_vax/tb_vax$n
+
+# clean NAs
+tb_vax<-tb_vax[!is.na(tb_vax$samplemonth),]
+
+# make the plot
+p10<-tb_vax %>%
+  ggplot(aes(x=samplemonth, y=prop.vax)) +
+  geom_point() +
+  geom_line()  +
+  geom_smooth(colour="red") +
+  theme_bw() + 
+  ylim(c(0,1)) +
+  ylab("Vaccinated%")
+p10
+```
+**Alton's comments:** "It might be worth comparing to reported vax rate for Alberta similar to what Sheila and Steve did in that figure." As they used (S+ N-)% to estimate the vax%, it will inevitably results in underestimation, as those who are vaccinated and infected was not counted.
+
+```{r}
+# create an addition indicator for S+ and N-
+table(APLs$pos_abbott, APLs$pos_abbott_s, useNA = 'ifany')
+
+APLs$vax_est<-rep(0, 214780)
+APLs$vax_est[APLs$pos_abbott==0 & APLs$pos_abbott_s==1]<-1
+APLs$vax_est[is.na(APLs$pos_abbott) | is.na(APLs$pos_abbott_s)]<-NA
+table(APLs$vax_est)
+```
+```{r}
+tb_vax_est<-APLs %>%
+  .[.$abb_s_AU==1 & !is.na(.$pos_abbott_s) & !is.na(.$pos_abbott),] %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            n_vax= sum(vax_est, na.rm = T)
+            )
+tb_vax_est$prop.vax<-tb_vax_est$n_vax/tb_vax_est$n
+
+# clean NAs
+tb_vax_est<-tb_vax_est[!is.na(tb_vax_est$samplemonth),]
+
+# make the plot
+p11<-tb_vax_est %>%
+  ggplot(aes(x=samplemonth, y=prop.vax)) +
+  geom_point() +
+  geom_line()  +
+  geom_smooth(colour="red") +
+  theme_bw() + 
+  ylim(c(0,1)) +
+  ylab("Vaccinated% Est by anti-S&N")
+p11
+```
 
