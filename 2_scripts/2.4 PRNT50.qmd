@@ -33,6 +33,8 @@ library(zoo)           # for year-month format
 ```
 
 ## 1. Clean the APL data
+
+#### 1.1 Use the APLs created
 ```{r}
 APLs<-merge(APLs, select(RFD4682_e, order_ID, 
                    'RBD-IgGII_RESULT', `RBD-IgGII_INTERP`,`RBD-IgGII_RESULT_DATE`
@@ -106,7 +108,26 @@ fivenum(APLs[!is.na(APLs$abbott_n) & APLs$abb_s_AU==1,]$samplemonth, na.rm = T)
 # Group 4: no available anti-S data, only Abbott-N
 fivenum(APLs[!is.na(APLs$abbott_n) & is.na(APLs$abb_s_AU),]$samplemonth, na.rm = T)
 ```
-**Notes**: So no matter what it really is it can't be Abbott-S-RBD and shall not be included in anti-S analysis. 
+**Notes**: So no matter what it really is it can't be Abbott-S-RBD and shall not be included in anti-S analysis. Updates on May 28th: Carmen replied and confirmed they are misplaced anti-N assay results.
+
+#### 1.2 Move the misplaced anti-N back to where they are
+```{r}
+APLs$abbott_n[APLs$abb_s_index==1 &
+              !is.na(APLs$abbott_s)]<-APLs$abbott_s[APLs$abb_s_index==1 & 
+                                                   !is.na(APLs$abbott_s)]
+APLs$abbott_s[APLs$abb_s_index==1 & !is.na(APLs$abbott_s)]<-NA
+
+# add anti-N interpretation
+APLs$pos_abbott[APLs$abbott_n<1.4 & !is.na(APLs$abbott_n)]<-0
+APLs$pos_abbott[APLs$abbott_n>=1.4 & !is.na(APLs$abbott_n)]<-1
+
+# redo the anti-S interpretation
+APLs$pos_abbott_s<-rep(NA,214780)
+APLs$pos_abbott_s[APLs$abbott_s<50 & !is.na(APLs$abbott_s)]<-0
+APLs$pos_abbott_s[APLs$abbott_s>=50 & !is.na(APLs$abbott_s)]<-1
+table(APLs$pos_abbott_s, useNA = 'ifany')
+```
+
 
 ## 2. Applying the COI 
 
@@ -238,7 +259,6 @@ tb_melt_t4<-reshape2::melt(select(tb_ros, samplemonth, prop.ros2, prop.abbst2, s
                         variable.name = "COI",
                         value.name = "prop")
 ```
-
 
 ## 3. Making the Plot
 
@@ -417,24 +437,44 @@ table(APLs$vax, useNA = 'ifany')
 APLs<-merge(APLs, select(RFD4682_e, order_ID, DAYS_SINCE_IMM),
       by="order_ID", all=T)
 ```
+**Notes:** In this part we also do the analysis for those got vaccinated >=28 days, however it does not change the shape of the lines so much. So we just group by doses (0/>=1).
 
 ```{r}
-# re-do the melt data
-tb_abbsv<-APLs %>%
-  .[.$abb_s_AU==1 & !(.$vax %in% c("Not Immunized", "Pre-Immunization")) &
-    .$DAYS_SINCE_IMM>=28 & !is.na(.$DAYS_SINCE_IMM),] %>%
+# re-do the melt data: no vax
+tb_abbsv0<-APLs %>%
+  .[.$abb_s_AU==1 & (.$vax %in% c("Not Immunized", "Pre-Immunization")),] %>%
   group_by(samplemonth) %>%
   summarise(n = n() , 
             pos_abbott_s= sum(pos_abbott_s, na.rm = T), 
             pos_abbott_s2= sum(pos_abbott_s2, na.rm = T)
             )
-tb_abbsv$prop.abbs1<-tb_abbsv$pos_abbott_s/tb_abbsv$n
-tb_abbsv$prop.abbs2<-tb_abbsv$pos_abbott_s2/tb_abbsv$n
+tb_abbsv0$prop.abbs1<-tb_abbsv0$pos_abbott_s/tb_abbsv0$n
+tb_abbsv0$prop.abbs2<-tb_abbsv0$pos_abbott_s2/tb_abbsv0$n
 
 # clean NAs
-tb_abbsv<-tb_abbsv[!is.na(tb_abbsv$samplemonth),]
+tb_abbsv0<-tb_abbsv0[!is.na(tb_abbsv0$samplemonth),]
 
-tb_abbsv_melt<-reshape2::melt(select(tb_abbsv, -c(2:4)), 
+tb_abbsv0_melt<-reshape2::melt(select(tb_abbsv0, -c(2:4)), 
+                        id.vars = c("samplemonth"),
+                        variable.name = "COI",
+                        value.name = "prop")
+
+# re-do the melt data: at least 1 dose
+tb_abbsv1<-APLs %>%
+  .[.$abb_s_AU==1 & .$vax %in% c("1 Dose","1-2 Doses","2 Doses","3 Doses",
+                             "4 Doses") ,] %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_abbott_s= sum(pos_abbott_s, na.rm = T), 
+            pos_abbott_s2= sum(pos_abbott_s2, na.rm = T)
+            )
+tb_abbsv1$prop.abbs1<-tb_abbsv1$pos_abbott_s/tb_abbsv1$n
+tb_abbsv1$prop.abbs2<-tb_abbsv1$pos_abbott_s2/tb_abbsv1$n
+
+# clean NAs
+tb_abbsv1<-tb_abbsv1[!is.na(tb_abbsv1$samplemonth),]
+
+tb_abbsv1_melt<-reshape2::melt(select(tb_abbsv1, -c(2:4)), 
                         id.vars = c("samplemonth"),
                         variable.name = "COI",
                         value.name = "prop")
@@ -442,18 +482,64 @@ tb_abbsv_melt<-reshape2::melt(select(tb_abbsv, -c(2:4)),
 
 ```{r}
 # re-do the plot
-# APL vax only
-p09v0<-tb_abbsv_melt %>%
+# APL: not vaccinated
+p09v0<-tb_abbsv0_melt %>%
   ggplot(aes(x=samplemonth, y=prop, group=COI, colour=COI)) +
-  geom_point(aes(colour=COI)) +
-  geom_line(aes(colour=COI))  +
+  geom_point(colour="red") +
+  geom_line(aes(linetype=COI), colour="red")  +
   theme_bw() + 
-  ylim(c(0,1))
+  ylim(c(0,1)) +
+  xlab("Time of Sample Collection") + 
+  ylab("Proportion")+ 
+  scale_linetype_manual("", values=c(1,3), labels = c("APL-Abbott (COI=50)", 
+                                                      "APL-Abbott (COI=402)"))+
+  theme(legend.position='top') + 
+  ggtitle("Stratum: not vaccinated")
 p09v0
 ```
+```{r}
+# Plot: at least 1 dose
+p09v1<-tb_abbsv1_melt %>%
+  ggplot(aes(x=samplemonth, y=prop, group=COI, colour=COI)) +
+  geom_point(colour="red") +
+  geom_line(aes(linetype=COI), colour="red")  +
+  theme_bw() + 
+  ylim(c(0,1)) +
+  xlab("Time of Sample Collection") + 
+  ylab("Proportion")+ 
+  scale_linetype_manual("", values=c(1,3), labels = c("APL-Abbott (COI=50)", 
+                                                      "APL-Abbott (COI=402)"))+
+  theme(legend.position='top')+
+  ggtitle("Stratum: at least 1 dose")
+p09v1
+```
+#### Figure panel
+```{r}
+# use cowplot package
+p09all.upper<-cowplot::plot_grid(p09c + ylab("Proportion") +
+                           theme(legend.position='top') +
+                           guides(color = guide_legend(nrow = 2)), 
+                           p09v0 + xlab ("") + ylab(""), nrow=1,
+                           labels = c("A", "B"),  align = "h")
+p09all.upper
+
+p09all.lower<-cowplot::plot_grid(
+                           NULL,  p09v1 + theme(legend.position="none"), nrow=1,
+                           labels = c("", "C"))
+p09all.lower
+
+
+png(file="../4_output/figs/Fig.4 Immunity.png", 
+    width=2400, height=2000, res=300)
+cowplot::plot_grid(p09all.upper, p09all.lower, nrow=2, rel_heights = c(1, 0.8))
+dev.off()
+```
+
+
 ## 4.2 The vaccination rate among APL
 The APL data Carmen shared with us has vaccination info, the 2024 Jan ver of it even has the vax brand. While the CBS data we have doesnot include vax info. However, a paper written by Sheila has the vax% of those in CBS data, which we can use for comparison on vax%.
 
+#### 4.2.1 Vax rate by APL vax data
 ```{r}
 # create vax% cat var
 APLs$vax_cat<-rep(NA, 214780)
@@ -488,6 +574,7 @@ p10
 ```
 **Alton's comments:** "It might be worth comparing to reported vax rate for Alberta similar to what Sheila and Steve did in that figure." As they used (S+ N-)% to estimate the vax%, it will inevitably results in underestimation, as those who are vaccinated and infected was not counted.
 
+#### 4.2.2 Vax by anti-S and anti-N
 ```{r}
 # create an addition indicator for S+ and N-
 table(APLs$pos_abbott, APLs$pos_abbott_s, useNA = 'ifany')
@@ -499,7 +586,7 @@ table(APLs$vax_est)
 ```
 ```{r}
 tb_vax_est<-APLs %>%
-  .[.$abb_s_AU==1 & !is.na(.$pos_abbott_s) & !is.na(.$pos_abbott),] %>%
+#  .[!is.na(.$pos_abbott_s) & !is.na(.$pos_abbott),] %>%
   group_by(samplemonth) %>%
   summarise(n = n() , 
             n_vax= sum(vax_est, na.rm = T)
@@ -519,5 +606,67 @@ p11<-tb_vax_est %>%
   ylim(c(0,1)) +
   ylab("Vaccinated% Est by anti-S&N")
 p11
+```
+**Notes:** Estimating the vax% using the anti-S (+) and anti-N (-) assay results. For our analysis, this way of estimation might be problematic. We don't have pre-Omicron wave anti-N data in APL  and the prevalence of ever infected (S+ & N+) raised sharply in 2022. This will result underestimated vax% in 2022, as presented in the fig above.
+
+#### 4.3.3 The Vax rate in AB general population
+```{r}
+# load the data from Canada Statistics
+vax_AB<-read.csv("https://health-infobase.canada.ca/src/data/covidLive/vaccination-coverage-map.csv")
+
+# create AB subset and clean the data
+vax_AB<-vax_AB[vax_AB$prename=="Alberta",]
+vax_ABs<-vax_AB %>%
+  select(week_end, numtotal_atleast1dose, proptotal_atleast1dose)
+colnames(vax_ABs)<-c("weekend", "num.1dose", "prop.1dose")
+vax_ABs$weekend<-as.yearmon(vax_ABs$weekend)
+
+# calculate monthly mean prop for vax rate
+tb_vax_AB<-vax_ABs %>%
+  group_by(weekend) %>%
+  summarise(ave.1dose = mean(prop.1dose))
+
+tb_vax_AB<-tb_vax_AB[!is.na(tb_vax_AB$ave.1dose),]
+tb_vax_AB$data<-rep("AB_general", length(tb_vax_AB$weekend))
+
+d01<-tb_vax_AB
+colnames(d01)<-c("samplemonth", "prop.vax", "data")
+```
+
+##### creating a merged data
+```{r}
+# Estimated vaccination rate: by anti-S + and anti-N neg
+View(tb_vax_est)
+d02<-select(tb_vax_est, c(1,4))
+d02$data<-rep("S_pos_N_Neg", length(d02$samplemonth))
+
+# Estimated vaccination rate: by anti-S only
+View(tb_abbs)
+d03<-select(tb_abbs, samplemonth, prop.abbs1, study)
+colnames(d03)<-c("samplemonth", "prop.vax", "data")
+d03$data<-rep("S_pos", length(d03$samplemonth))
+
+# Reported vax rate in APL
+View(tb_vax)
+d04<-select(tb_vax, c(1,4))
+d04$data<-rep("APL_vax", length(d04$samplemonth))
+
+# merge all
+dta.vax<-rbind.data.frame(d01, d02, d03, d04)
+rm(d01, d02, d03, d04)
+
+dta.vax$prop.vax[dta.vax$data=="AB_general"]<-dta.vax$prop.vax[dta.vax$data=="AB_general"]/100
+```
+
+##### Making the plot
+```{r}
+p12<-dta.vax %>%
+  ggplot(aes(x=samplemonth, y=prop.vax, group=data, colour=data)) +
+  geom_point(aes(colour=data)) +
+  geom_line(aes(colour=data))  +
+  theme_bw() + 
+  ylim(c(0,1)) +
+  ylab("Vaccinated%")
+p12
 ```
 
