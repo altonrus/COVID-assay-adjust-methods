@@ -513,6 +513,32 @@ p09v1<-tb_abbsv1_melt %>%
   ggtitle("Stratum: at least 1 dose")
 p09v1
 ```
+#### Add time indicator to the figure
+```{r}
+# time when vax is available to Alberta health care workers and first responders
+# Jan: medical workers
+# Feb: Phase-1: age 75+
+# Mar: Phase-2: group A
+# Apr: Phase-2: group B, C
+# May: Phase-3: age 12+
+
+p09v1 + 
+  geom_vline(xintercept = as.yearmon(c("2021-01", "2021-02", "2021-03",
+                                       "2021-04", "2021-05"))
+             , linetype="dotted", size = 1.0, color="grey") +
+  geom_text(aes(x=as.yearmon("Jan 2021"), label="\nHealth Care Workers", y=0.25), 
+            colour="navy", angle=90)+
+  geom_text(aes(x=as.yearmon("Feb 2021"), label="\nPhase1: aged 75+", y=0.25), 
+            colour="navy", angle=90)+
+  geom_text(aes(x=as.yearmon("Mar 2021"), label="\nPhase2A: aged 65+", y=0.25), 
+            colour="navy", angle=90)+
+  geom_text(aes(x=as.yearmon("Apr 2021"), label="\nPhase2B, 2C: aged 18+ with risks", y=0.40), 
+            colour="navy", angle=90)+
+  geom_text(aes(x=as.yearmon("May 2021"), label="\nPhase3: aged 12+", y=0.25), 
+            colour="navy", angle=90)
+```
+
+
 #### Figure panel
 ```{r}
 # use cowplot package
@@ -609,7 +635,7 @@ p11
 ```
 **Notes:** Estimating the vax% using the anti-S (+) and anti-N (-) assay results. For our analysis, this way of estimation might be problematic. We don't have pre-Omicron wave anti-N data in APL  and the prevalence of ever infected (S+ & N+) raised sharply in 2022. This will result underestimated vax% in 2022, as presented in the fig above.
 
-#### 4.3.3 The Vax rate in AB general population
+#### 4.2.3 The Vax rate in AB general population
 ```{r}
 # load the data from Canada Statistics
 vax_AB<-read.csv("https://health-infobase.canada.ca/src/data/covidLive/vaccination-coverage-map.csv")
