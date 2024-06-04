@@ -35,6 +35,7 @@ library(zoo)           # for year-month format
 ## 1. Clean the APL data
 
 #### 1.1 Use the APLs created
+
 ```{r}
 APLs<-merge(APLs, select(RFD4682_e, order_ID, 
                    'RBD-IgGII_RESULT', `RBD-IgGII_INTERP`,`RBD-IgGII_RESULT_DATE`
@@ -76,6 +77,7 @@ summary(APLs[APLs$pos_abbott==0 & !is.na(APLs$abbott_n),]$abbott_n)
 
 table(APLs$pos_abbott)
 ```
+
 ```{r}
 # abbott_n misclassified as abbott_s with index?
 APLs %>%
@@ -108,9 +110,11 @@ fivenum(APLs[!is.na(APLs$abbott_n) & APLs$abb_s_AU==1,]$samplemonth, na.rm = T)
 # Group 4: no available anti-S data, only Abbott-N
 fivenum(APLs[!is.na(APLs$abbott_n) & is.na(APLs$abb_s_AU),]$samplemonth, na.rm = T)
 ```
+
 **Notes**: So no matter what it really is it can't be Abbott-S-RBD and shall not be included in anti-S analysis. Updates on May 28th: Carmen replied and confirmed they are misplaced anti-N assay results.
 
 #### 1.2 Move the misplaced anti-N back to where they are
+
 ```{r}
 APLs$abbott_n[APLs$abb_s_index==1 &
               !is.na(APLs$abbott_s)]<-APLs$abbott_s[APLs$abb_s_index==1 & 
@@ -128,10 +132,10 @@ APLs$pos_abbott_s[APLs$abbott_s>=50 & !is.na(APLs$abbott_s)]<-1
 table(APLs$pos_abbott_s, useNA = 'ifany')
 ```
 
-
-## 2. Applying the COI 
+## 2. Applying the COI
 
 #### 2.1 Apply COI to APL (Abbott-S) data
+
 ```{r}
 APLs$pos_abbott_s2<-rep(NA, 214780)
 APLs$pos_abbott_s2[APLs$abb_s_AU==1 & !is.na(APLs$abb_s_AU) &
@@ -142,7 +146,9 @@ table(APLs$pos_abbott_s2, useNA = 'ifany')
 
 table(APLs$pos_abbott_s, APLs$pos_abbott_s2, useNA = 'ifany')
 ```
+
 ### Apply COI to CBS (Roche-S) data
+
 ```{r}
 CBSs$pos_roche_s<-CBS$interp_roche_s
 CBSs_AB<-CBSs[CBSs$province=="AB",]
@@ -159,11 +165,13 @@ table(CBSs_AB$pos_roche_s2, useNA = 'ifany')
 # Comparison btw COI 0.8 & 178.81
 table(CBSs_AB$pos_roche_s, CBSs_AB$pos_roche_s2, useNA = 'ifany')
 ```
+
 **Notes:** After increasing the COI from 0.8 to 178.81, 6732 of 108,514 (6.20%) samples were re-categorized as negative. The gap is smaller than what we observed in APL data, which has gaps of around 10%.
 
-#### 2.2 Roche-S <--> Abbott-S transformation
+#### 2.2 Roche-S \<--\> Abbott-S transformation
 
 #### 2.2.1 Apply Transformation
+
 ```{r}
 # Abbott-S = 82.5 + 15.54*Roche-S
 # Source: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8552734/
@@ -188,6 +196,7 @@ APLs$pos_roche_st2[APLs$abb_s_AU==1 & !is.na(APLs$abb_s_AU) &
                      APLs$roche_st<178.81 & !is.na(APLs$roche_st)]<-0
 table(APLs$pos_roche_st, APLs$pos_roche_st2, useNA = 'ifany')
 ```
+
 ```{r}
 # CBS
 CBSs_AB$abbott_st<-82.5+CBSs_AB$roche_s*15.54
@@ -205,7 +214,9 @@ CBSs_AB$pos_abbott_st2[CBSs_AB$abbott_st>=402.36 & !is.na(CBSs_AB$abbott_st)]<-1
 CBSs_AB$pos_abbott_st2[CBSs_AB$abbott_st<402.36 & !is.na(CBSs_AB$abbott_st)]<-0
 table(CBSs_AB$pos_abbott_st, CBSs_AB$pos_abbott_st2, useNA = 'ifany')
 ```
+
 #### 2.2.2 Creating merged dta
+
 ```{r}
 tb_abbst<-APLs %>%
   .[.$abb_s_AU==1,] %>%
@@ -263,6 +274,7 @@ tb_melt_t4<-reshape2::melt(select(tb_ros, samplemonth, prop.ros2, prop.abbst2, s
 ## 3. Making the Plot
 
 ## 3.1.1 Prepare the melt data: APL
+
 ```{r}
 # recode pos/neg
 APLs$pos_abbott_s[APLs$pos_abbott_s=="Positive"]<-1
@@ -292,6 +304,7 @@ tb_abbs_melt<-reshape2::melt(select(tb_abbs, -c(2:4)),
 ```
 
 ## 3.1.2 Prepare the melt data: CBS
+
 ```{r}
 tb_ros<-CBSs_AB %>%
   group_by(samplemonth) %>%
@@ -308,10 +321,10 @@ tb_ros_melt<-reshape2::melt(select(tb_ros, -c(2:4)),
                         value.name = "prop")
 ```
 
-
 ## 3.2 Making the Plot
 
 #### 3.2.1 Making the plot seperately for CBS & APL
+
 ```{r}
 # APL
 p09<-tb_abbs_melt %>%
@@ -329,7 +342,9 @@ p09b<-tb_ros_melt %>%
   theme_bw() 
 p09b
 ```
+
 #### 3.2.2 Making APL & CBS in one plot
+
 ```{r}
 # creating merged summary tab
 tb_abbs_melt$study<-rep("APL", length(tb_abbs_melt$samplemonth))
@@ -367,7 +382,9 @@ p09c<-tb_APLCBS2 %>%
 
 p09c
 ```
+
 #### 3.2.3 Plot for transformed curved
+
 ```{r}
 # Plot 1
 p09d.dta<-rbind.data.frame(tb_melt_t1, tb_melt_t3)
@@ -421,9 +438,11 @@ p09e<-p09e.dta %>%
 
 p09e
 ```
+
 ## 4 Misc Analysis
 
 #### 4.1 Sensitivity Analysis
+
 ```{r}
 # Add vax variable
 APLs<-merge(APLs, select(RFD4682_e, order_ID, VACCINATION_STATUS),
@@ -437,12 +456,13 @@ table(APLs$vax, useNA = 'ifany')
 APLs<-merge(APLs, select(RFD4682_e, order_ID, DAYS_SINCE_IMM),
       by="order_ID", all=T)
 ```
-**Notes:** In this part we also do the analysis for those got vaccinated >=28 days, however it does not change the shape of the lines so much. So we just group by doses (0/>=1).
+
+**Notes:** In this part we also do the analysis for those got vaccinated \>=28 days, however it does not change the shape of the lines so much. So we just group by doses (0/\>=1).
 
 ```{r}
 # re-do the melt data: no vax
 tb_abbsv0<-APLs %>%
-  .[.$abb_s_AU==1 & (.$vax %in% c("Not Immunized", "Pre-Immunization")),] %>%
+  .[.$abb_s_AU==1 & (.$vax %in% c("Not Immunized", "Pre-Immunization", "1 Dose")),] %>%
   group_by(samplemonth) %>%
   summarise(n = n() , 
             pos_abbott_s= sum(pos_abbott_s, na.rm = T), 
@@ -461,7 +481,7 @@ tb_abbsv0_melt<-reshape2::melt(select(tb_abbsv0, -c(2:4)),
 
 # re-do the melt data: at least 1 dose
 tb_abbsv1<-APLs %>%
-  .[.$abb_s_AU==1 & .$vax %in% c("1 Dose","1-2 Doses","2 Doses","3 Doses",
+  .[.$abb_s_AU==1 & .$vax %in% c("1-2 Doses","2 Doses","3 Doses",
                              "4 Doses") ,] %>%
   group_by(samplemonth) %>%
   summarise(n = n() , 
@@ -494,9 +514,10 @@ p09v0<-tb_abbsv0_melt %>%
   scale_linetype_manual("", values=c(1,3), labels = c("APL-Abbott (COI=50)", 
                                                       "APL-Abbott (COI=402)"))+
   theme(legend.position='top') + 
-  ggtitle("Stratum: not vaccinated")
+  ggtitle("Stratum: not vaccinated or 1 dose only")
 p09v0
 ```
+
 ```{r}
 # Plot: at least 1 dose
 p09v1<-tb_abbsv1_melt %>%
@@ -510,10 +531,48 @@ p09v1<-tb_abbsv1_melt %>%
   scale_linetype_manual("", values=c(1,3), labels = c("APL-Abbott (COI=50)", 
                                                       "APL-Abbott (COI=402)"))+
   theme(legend.position='top')+
-  ggtitle("Stratum: at least 1 dose")
+  ggtitle("Stratum: at least 2 doses")
 p09v1
 ```
+##### Is 1-doser the cause of the "peak" and "bucket"?
+```{r}
+tb_abbsv11<-APLs %>%
+  .[.$abb_s_AU==1 & .$vax %in% c("1 Dose") ,] %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_abbott_s= sum(pos_abbott_s, na.rm = T), 
+            pos_abbott_s2= sum(pos_abbott_s2, na.rm = T)
+            )
+tb_abbsv11$prop.abbs1<-tb_abbsv11$pos_abbott_s/tb_abbsv11$n
+tb_abbsv11$prop.abbs2<-tb_abbsv11$pos_abbott_s2/tb_abbsv11$n
+
+# clean NAs
+tb_abbsv11<-tb_abbsv11[!is.na(tb_abbsv11$samplemonth),]
+
+tb_abbsv11_melt<-reshape2::melt(select(tb_abbsv11, -c(2:4)), 
+                        id.vars = c("samplemonth"),
+                        variable.name = "COI",
+                        value.name = "prop")
+```
+
+```{r}
+# Plot: 1 dose only
+p09v11<-tb_abbsv11_melt %>%
+  ggplot(aes(x=samplemonth, y=prop, group=COI, colour=COI)) +
+  geom_point(colour="red") +
+  geom_line(aes(linetype=COI), colour="red")  +
+  theme_bw() + 
+  ylim(c(0,1)) +
+  xlab("Time of Sample Collection") + 
+  ylab("Proportion")+ 
+  scale_linetype_manual("", values=c(1,3), labels = c("APL-Abbott (COI=50)", 
+                                                      "APL-Abbott (COI=402)"))+
+  theme(legend.position='top')+
+  ggtitle("Stratum: 1 dose only")
+p09v11
+```
 #### Add time indicator to the figure
+
 ```{r}
 # time when vax is available to Alberta health care workers and first responders
 # Jan: medical workers
@@ -538,8 +597,8 @@ p09v1 +
             colour="navy", angle=90)
 ```
 
-
 #### Figure panel
+
 ```{r}
 # use cowplot package
 p09all.upper<-cowplot::plot_grid(p09c + ylab("Proportion") +
@@ -561,11 +620,12 @@ cowplot::plot_grid(p09all.upper, p09all.lower, nrow=2, rel_heights = c(1, 0.8))
 dev.off()
 ```
 
-
 ## 4.2 The vaccination rate among APL
+
 The APL data Carmen shared with us has vaccination info, the 2024 Jan ver of it even has the vax brand. While the CBS data we have doesnot include vax info. However, a paper written by Sheila has the vax% of those in CBS data, which we can use for comparison on vax%.
 
 #### 4.2.1 Vax rate by APL vax data
+
 ```{r}
 # create vax% cat var
 APLs$vax_cat<-rep(NA, 214780)
@@ -574,6 +634,7 @@ APLs$vax_cat[APLs$vax %in% c("1 Dose","1-2 Doses","2 Doses","3 Doses",
 APLs$vax_cat[APLs$vax %in% c("Not Immunized", "Pre-Immunization")]<-0
 table(APLs$vax, APLs$vax_cat, useNA = 'ifany')
 ```
+
 ```{r}
 # create merged data
 tb_vax<-APLs %>%
@@ -598,9 +659,11 @@ p10<-tb_vax %>%
   ylab("Vaccinated%")
 p10
 ```
+
 **Alton's comments:** "It might be worth comparing to reported vax rate for Alberta similar to what Sheila and Steve did in that figure." As they used (S+ N-)% to estimate the vax%, it will inevitably results in underestimation, as those who are vaccinated and infected was not counted.
 
 #### 4.2.2 Vax by anti-S and anti-N
+
 ```{r}
 # create an addition indicator for S+ and N-
 table(APLs$pos_abbott, APLs$pos_abbott_s, useNA = 'ifany')
@@ -610,6 +673,7 @@ APLs$vax_est[APLs$pos_abbott==0 & APLs$pos_abbott_s==1]<-1
 APLs$vax_est[is.na(APLs$pos_abbott) | is.na(APLs$pos_abbott_s)]<-NA
 table(APLs$vax_est)
 ```
+
 ```{r}
 tb_vax_est<-APLs %>%
 #  .[!is.na(.$pos_abbott_s) & !is.na(.$pos_abbott),] %>%
@@ -633,9 +697,11 @@ p11<-tb_vax_est %>%
   ylab("Vaccinated% Est by anti-S&N")
 p11
 ```
-**Notes:** Estimating the vax% using the anti-S (+) and anti-N (-) assay results. For our analysis, this way of estimation might be problematic. We don't have pre-Omicron wave anti-N data in APL  and the prevalence of ever infected (S+ & N+) raised sharply in 2022. This will result underestimated vax% in 2022, as presented in the fig above.
+
+**Notes:** Estimating the vax% using the anti-S (+) and anti-N (-) assay results. For our analysis, this way of estimation might be problematic. We don't have pre-Omicron wave anti-N data in APL and the prevalence of ever infected (S+ & N+) raised sharply in 2022. This will result underestimated vax% in 2022, as presented in the fig above.
 
 #### 4.2.3 The Vax rate in AB general population
+
 ```{r}
 # load the data from Canada Statistics
 vax_AB<-read.csv("https://health-infobase.canada.ca/src/data/covidLive/vaccination-coverage-map.csv")
@@ -660,6 +726,7 @@ colnames(d01)<-c("samplemonth", "prop.vax", "data")
 ```
 
 ##### creating a merged data
+
 ```{r}
 # Estimated vaccination rate: by anti-S + and anti-N neg
 View(tb_vax_est)
@@ -685,6 +752,7 @@ dta.vax$prop.vax[dta.vax$data=="AB_general"]<-dta.vax$prop.vax[dta.vax$data=="AB
 ```
 
 ##### Making the plot
+
 ```{r}
 p12<-dta.vax %>%
   ggplot(aes(x=samplemonth, y=prop.vax, group=data, colour=data)) +
@@ -694,5 +762,111 @@ p12<-dta.vax %>%
   ylim(c(0,1)) +
   ylab("Vaccinated%")
 p12
+```
+
+## 4.3 Iris's Imputation on Vax history
+
+```{r}
+load("/home/jchen/../iganser/CBS_data/temp/2024-04-16_df4_schange_new_corrected2.RData")
+save(df4_schange_new_corrected2, file = "../1_data/private/CBS_vax_imputed.RData")
+
+# beware iris is using an updated ver of CBS, there's few thousands more observations available in this ver of CBS.
+CBS_vax_imputed<-df4_schange_new_corrected2
+rm(df4_schange_new_corrected2)
+```
+
+#### 4.3.1 Data cleaning and merging
+```{r}
+# The imputed vaccination variable
+table(CBS_vax_imputed$series_s, useNA = 'ifany')
+
+# add imputed variable to CBSs data
+CBSs_AB<-merge(CBSs_AB, 
+      select(CBS_vax_imputed, pid, sampledate, series_s), 
+             by = c("pid", "sampledate"),
+      all.x = T, all.y = F)
+
+table(CBSs_AB$series_s, useNA = 'ifany')
+# N(missing) = 24393. The combination of pid and sampledate is unique in both CBS and Iris's ver of CBS. So some of the samples we are working on are not matching.
+
+CBSs_AB$series_bin[CBSs_AB$series_s=="not vaccinated/1st only"]<-0
+CBSs_AB$series_bin[CBSs_AB$series_s!="not vaccinated/1st only" & !is.na(CBSs_AB$series_s)]<-1
+
+table(CBSs_AB$series_s, CBSs_AB$series_bin, useNA = 'ifany')
+```
+Iris algorithm cannot take unvaccinated and 1 dose only apart. In our case we can create a binary var <2 doses and >=2 doses, so we can do the same stratification with APL data.
+```{r}
+# re-do the melt data: no vax or 1 dose only
+tb_rosv0<-CBSs_AB %>%
+  .[.$series_bin == 0,] %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_ros= sum(pos_roche_s, na.rm = T), 
+            pos_ros2= sum(pos_roche_s2, na.rm = T)
+            )
+tb_rosv0$prop.ros1<-tb_rosv0$pos_ros/tb_rosv0$n
+tb_rosv0$prop.ros2<-tb_rosv0$pos_ros2/tb_rosv0$n
+
+# clean NAs
+tb_rosv0<-tb_rosv0[!is.na(tb_rosv0$samplemonth),]
+
+tb_rosv0_melt<-reshape2::melt(select(tb_rosv0, -c(2:4)), 
+                        id.vars = c("samplemonth"),
+                        variable.name = "COI",
+                        value.name = "prop")
+
+# re-do the melt data: at least 1 dose
+tb_rosv1<-CBSs_AB %>%
+  .[.$series_bin == 1,] %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_ros= sum(pos_roche_s, na.rm = T), 
+            pos_ros2= sum(pos_roche_s2, na.rm = T)
+            )
+tb_rosv1$prop.ros1<-tb_rosv1$pos_ros/tb_rosv1$n
+tb_rosv1$prop.ros2<-tb_rosv1$pos_ros2/tb_rosv1$n
+
+# clean NAs
+tb_rosv1<-tb_rosv1[!is.na(tb_rosv1$samplemonth),]
+
+tb_rosv1_melt<-reshape2::melt(select(tb_rosv1, -c(2:4)), 
+                        id.vars = c("samplemonth"),
+                        variable.name = "COI",
+                        value.name = "prop")
+```
+
+```{r}
+# re-do the plot
+# APL: not vaccinated
+p13v0<-tb_rosv0_melt %>%
+  ggplot(aes(x=samplemonth, y=prop, group=COI, colour=COI)) +
+  geom_point(colour="blue") +
+  geom_line(aes(linetype=COI), colour="blue")  +
+  theme_bw() + 
+  ylim(c(0,1)) +
+  xlab("Time of Sample Collection") + 
+  ylab("Proportion")+ 
+  scale_linetype_manual("", values=c(1,3), labels = c("CBS-Roche (COI=0.8)", 
+                                                      "CBS-Roche (COI=179)"))+
+  theme(legend.position='top') + 
+  ggtitle("Stratum: not vaccinated or 1 dose only")
+p13v0
+```
+
+```{r}
+# Plot: at least 1 dose
+p13v1<-tb_rosv1_melt %>%
+  ggplot(aes(x=samplemonth, y=prop, group=COI, colour=COI)) +
+  geom_point(colour="blue") +
+  geom_line(aes(linetype=COI), colour="blue")  +
+  theme_bw() + 
+  ylim(c(0,1)) +
+  xlab("Time of Sample Collection") + 
+  ylab("Proportion")+ 
+  scale_linetype_manual("", values=c(1,3), labels = c("CBS-Roche (COI=0.8)", 
+                                                      "CBS-Roche (COI=179)"))+
+  theme(legend.position='top')+
+  ggtitle("Stratum: at least 2 doses")
+p13v1
 ```
 
