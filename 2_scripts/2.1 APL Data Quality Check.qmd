@@ -15,7 +15,11 @@ When you click the **Render** button a document will be generated that includes 
 ## Load the APL data with encrypted ID variables
 
 ```{r}
+# APL first version: provided by Carmen in 2023
 load(file = "../1_data/private/RFD4682e.RData")
+
+# Second version of APL: provided by Carmen in Jan 2024
+
 ```
 
 ## Load paks
@@ -420,13 +424,14 @@ RFD4682_e[is.na(RFD4682_e$clean_IDe)==F &
 ```
 
 #### As required by Matthew, add quintmat & qunitsoc variable
+
 ```{r}
 # load a matching scale, by 6-digit postal codes
 pcode_match <- read.delim("~/COVID-assay-adjust-methods/1_data/private/ot_ccp_postalcodecodeequivalence.txt")
 
 # load updated version of APL
 library(readxl)
-RFD4682_v2 <- read_excel("1_data/private/RFD4682_Data_for release Jan 2024.xlsx", 
+RFD4682_v2 <- read_excel("../1_data/private/RFD4682_Data_for release Jan 2024.xlsx", 
     sheet = "RFD4682_Full_Data", col_types = c("text", 
         "numeric", "text", "numeric", "numeric", 
         "date", "text", "text", "date", "date", 
@@ -464,7 +469,6 @@ RFD4682_e1<-select(RFD4682_e, -c("PAT3", "PAT_match", "N", "Col_Month"))
 
 ```
 
-
 #### A quick clean of the Anti-N data
 
 ```{r}
@@ -484,6 +488,7 @@ table(RFD4682_e$`N-IgG_INTERP`, useNA = 'ifany')
 #### Add a year-month var
 
 ```{r}
+
 # only keep the month, remove the data
 RFD4682_e$Col_Month<-format(as.Date(RFD4682_e$COLLECTION_DATE), "%Y-%m")
 table(RFD4682_e$Col_Month, useNA='ifany')

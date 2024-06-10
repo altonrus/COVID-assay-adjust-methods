@@ -1,5 +1,5 @@
 ---
-title: "Assessing methods to adjust for assay differences across COVID-19 serological surveillance studies in Canada"
+title: "HOW ASSAY DIFFERENCES AND STATISTICAL ADJUSTMENT IMPACT INFERENCES FROM SARS-COV-2 SEROLOGICAL SURVEILLANCE STUDIES"
 execute: 
   echo: false
 format:
@@ -44,25 +44,33 @@ moment but it's being actively worked on. To install latest package version, use
 
 --->
 ```
-Jiacheng Chen^1,2^, Yuan Yu^1^, Sheila O'Brien^3^, Yu Nakagama^4^ ..., W. Alton Russell^1,2^
+Jiacheng Chen^1,2^, Yuan Yu^1^, Sheila O'Brien^3,4^, Carmen L. Charlton^5,6,7^, Steven Drews^5,6^, Yu Nakagama^8^, Yasutoshi Kido^8^, David L. Buckeridge^1,2^, W. Alton Russell^1,2^
 
 <br>
 
 ^1^School of Population and Global Health, McGill University, Montreal, Canada
 
-^2^COVID-19 Immunity Task Force
+^2^COVID-19 Immunity Task Force, Montreal, Canada
 
-^3^Canadian Blood Services
+^3^Epidemiology and Surveillance, Canadian Blood Services, Ottawa, Ontario, Canada
 
-^4^Graduate School of Medicine, Osaka City University
+^4^School of Epidemiology and Public Health, University of Ottawa, Ottawa, Canada
+
+^5^Microbiology, Canadian Blood Services, Edmonton, Alberta, Canada
+
+^6^Laboratory Medicine and Pathology, University of Alberta, Edmonton, Alberta, Canada
+
+^7^Alberta Precision Laboratories (ProvLab), University of Alberta Hospital, Edmonton, Alberta, Canada
+
+^8^Graduate School of Medicine, Osaka Metropolitan University, Osaka, Japan
 
 <br>
 
-**Corresponding author:**
+**Corresponding author:** W. Alton Russell, McGill University, alton.russell\@mcgill.ca
 
-**Key words:**
+**Key words:** population health surveillance, serology, assay adjustment
 
-**Running title:**
+**Running title:** Serologic assay adjustment
 
 {{< pagebreak >}}
 
@@ -89,19 +97,11 @@ df_dataset <- read_excel("../1_data/tables.xlsx", sheet = "dataset")
 
 # Abstract
 
-**Background:** A
-
-**Methods:** A
-
-**Results:** A
-
-**Conclusions:** A
+Previous research shows substantial variability in SARS-CoV-2 seroprevalence estimates using different serological assays. The Roche Elecsys® anti-nucleocapsid (anti-N) assay demonstrates less waning sensitivity over time compared to the Abbott anti-N assay. We analyzed two Alberta serosurveillance datasets: 124,008 blood donor samples by Canadian Blood Services (CBS) and 214,780 outpatient samples by Alberta Precision Labs (APL). For anti-N analysis, we estimated seroprevalence using Rogen-Gladen (RG) adjustments and Bayesian intervals, with and without regression models. We also estimated rolling incidence using multinomial regression models. Early pandemic anti-N seropositivity was similar, but diverged after May 2022 due to greater waning sensitivity in the Abbott assay. RG adjustments had minimal impact, while regression improved concordance. For anti-S assays, 95% of blood donors and 90% of APL outpatients had seroconverted by the end of 2021, with 90% and 80% respectively achieving high antibody levels. Serosurveillance estimates are sensitive to the choice of anti-N assay, with common adjustments having limited impact. Regression-based approaches enhance comparability, and rolling incidence is a more population health-relevant measurement. Anti-S assays performed similarly between two datasets, with minor differences likely due to vaccination rates. These methods help to integrate and compare serosurveillance data across populations. (194/200 words)
 
 {{< pagebreak >}}
 
 # Introduction
-
-Test of citation: [@Langham2018a]. See @fig-sample, @cor-sample, @thm-sample, @thm-data, and @lem-sample.
 
 \[Be concise in this section\]
 
@@ -127,32 +127,26 @@ Test of citation: [@Langham2018a]. See @fig-sample, @cor-sample, @thm-sample, @t
 <!---
 
 NOTES:
-- The methods section of this project is partly unfinished, and the details of it needs constantly updating overtime, as the project goes. The potential obstacles were listed below:
+- The methods section of this project is finished, however, there's few more tasks to finish before submitting the manuscript to the journal:
 
-1. APL assay data before the Omicron wave was mostly missing, only Omicron wave data is available. Also we do not know what assay they used for anti-N (probably Abbott anti-N).
+1. APL anti-N assay data before the Omicron wave was recently found misplaced in the anti-S column. Data cleaning is on-going and we will update our analysis with updated anti-N data later.
 
-2. In AB Outpatient Lab Data, they changed the assay (Diasorin S -- Abbott S) in the midway, this would affect the validity of analysis based on quantitative test results, as the results from different assay are not directly comparable. Hopefully this can be clarified by the APL data team. Our currently analysis assume the Anti-N/S assays used in omicron wave are all Abbott's, based on the paper published by Carmen in the post-vax stage: https://doi.org/10.1080/23744235.2022.2080250
-
-3. Canpath (removed): At least two types of anti-N assays are utilized: Mount Sinai Hosp anti-N (a in-lab developed assay) and Abbott anti-N (a commercial assay). Need to figure out which prov at what time used what assay, so we can apply sens for adjustment accordingly. As the assay difference project is mainly comparing CBS to APL, and Canpath has very few data available at later phases of the pandemic when sero-prevalence diverge between APL & CBS, we decided to have it excluded from analysis.
+2. In AB Outpatient Lab Data, they changed the assay (Diasorin S -- Abbott S) in the midway, this would affect the validity of analysis based on quantitative test results, as the results from different assay are not directly comparable. Our currently analysis assume the Anti-N/S assays used in omicron wave are all Abbott's, based on the paper published by Carmen in the post-vax stage: https://doi.org/10.1080/23744235.2022.2080250
 
 4. CBS: The data we have least problem with. CBS is still actively updating (last ver downloaded on Nov 30th) and Yuan has the access to the most updated ver of CBS. (last checked on 30-Apr-2024, CBS 2023-11-30 is the version we are working on, lastest CBS has 2023 data updated) As the assay difference project is mainly comparing CBS to APL, we don't have to include 2023 CBS data as APL has no comparable data. 
+
+5. We've added Iris's algorithm for vaccination imputation in CBS. This algothrim has some minor limitations and those issues are discussed in the discussion section.
 --->
 ```
 ## Dataset
 
-To estimate the SARS-CoV-2 seroprevalence and rolling incidence in Alberta, we used data from the Alberta Outpatient Lab (APL) and Canadian Blood Services (CBS). Alberta Health Services (AHS) tested \>160,000 APL blood draws for SARS-CoV-2 anti-N and anti-S antibodies from June 2020 until October 2022. CBS has tested \>450,000 blood donations for both antibodies levels since March 2020. The CBS Alberta subset has tested 124,008 samples in the same data collection period as CBS. Besides of assay results, both datasets include demographic variables such as donor's sex, self-reported race/ethnicity, age, and Forward Sortation Area (FSA) codes. From their FSA codes, neighborhood material/social deprivation and urban/rural indicator have been derived.
+To estimate the SARS-CoV-2 seroprevalence and rolling incidence, we analyzed two residual blood serosurveillance datasets in Alberta, Canada: 124,008 blood donor plasma samples tested with Roche Elecsys® Anti-SARS-CoV-2 (anti-N) and Anti-SARS-CoV-2 S (anti-S) by Canadian Blood Services (CBS) and 214,780 outpatient lab plasma or sera samples tested with the Abbott SARS-CoV-2 IgG Assay (anti-N) and SARS-CoV-2 IgG QUANT (anti-S) by Alberta Precision Labs (APL).
 
-Two datasets have different data collection time frames. The CBS dataset has the most extended period, ranging from December 2020 to February 2023. Meanwhile, APL's data collection spans from June 2020 to October 2022. However, the anti-N assay results are only available starting from December 2021 in the APL data. @thm-data summarized the differences among two datasets.
-
-@thm-data CBS and APL
-
-[insert @thm-data here if necessary]
-
-Regarding the data we used to train the regression models, we identified several studies conducted in the early phases of the Covid-19 pandemic. Blood samples are collected from France, Jamaica, Japan and UK \[**add citation**\], with known sample positivity at the time of collection (more details are available at the supplemental methods section). The samples in Jamaica, Japan and UK were tested both for Abbott anti-N and Roche anti-N assay, which makes them suitable for transformation model training.
+Two datasets have different data collection time frames. The CBS dataset has the most extended period, ranging from December 2020 to February 2023. Meanwhile, APL's data collection spans from June 2020 to October 2022. However, the anti-N assay results are only available starting from December 2021 in the APL data.
 
 ## **Seroprevalence adjusted by RG and Bayesian models**
 
-To evaluate the severity of Covid-19 pandemic overtime in Alberta province, first we calculated the anti-N assay test positivity. Then, to bridge the gap between test positivity and population-level seroprevalence, we employed the adjustment using Rogen-Gladen (RG) equation and Bayesian models. We conducted analysis separately for CBS and APL data then presented the results in figure X (@fig-seroprevalence).
+To evaluate the severity of Covid-19 pandemic overtime in each dataset, we estimated crude seroprevalence, and seroprevalence with the Rogen-Gladen (RG) adjustment for previously reported sensitivity and specificity using Bayesian credible intervals.
 
 Rogan Gladen equation:
 
@@ -160,7 +154,7 @@ $$
 Prevalence = \frac{TestPositivity + (Spec-1)}{Spec + (Sens-1))}
 $$
 
-Where as "Prevalence" indicate RG adjusted seroprevalence estimates. "Test Positivity" indicates the proportion of test samples with positive results. "Spec" and "Sens" indicate the specificity and sensitivity of the assay, respectively.
+Where "Prevalence" indicate RG adjusted seroprevalence estimates. "Test Positivity" indicates the proportion of test samples with positive results. "Spec" and "Sens" indicate the specificity and sensitivity of the anti-N assay, respectively.
 
 Bayesian models adjusting for sensitivity:
 
@@ -170,58 +164,47 @@ $$
 
 \[Bayesian models adjusting for waning sensitivity\]: Equation (above) and what each factor indicates (What model input and output. What covariates we've adjusted for...).
 
-## **Seroprevalence based on raw/transformed data**
+## **Regression-based assay transformation**
 
-Following seroprevalence estimation, we further estimated monthly rolling incidence proportion of SARS-CoV-2 infection. Using matched data from samples tested with both assays early in the pandemic, we developed log-linear regression models to transform CBS Roche qualitative results to Abbott and applied the Abbott cutoff index and made the opposite transformation to convert APL to Roche. The seroprevalence estimates based on raw and transformed data are presented in figure X (@fig-transformed).
+Using data from samples tested with both assays early in the pandemic (in 2020), we developed linear regression models to transform CBS Roche qualitative results to Abbott and applied the Abbott cutoff index and made the opposite transformation to convert APL to Roche. Then we estimated seroprevalence in each dataset based on raw and transformed data.
+
+\[Add our transformation equation here?\]
 
 ## **Rolling Incidence**
 
-Next, we developed multinomial logistic regression models using data collected in the early pandemic to estimate the probability a tested sample was tested 0-3, 4-6, 7-9, or \>9 months from infection based on the qualitative anti-N assay results. Then we applied this model to the CBS and APL datasets to estimate rolling incidence from 2021 to 2023.
+Following seroprevalence estimation, we further estimated monthly rolling incidence proportion of SARS-CoV-2 infection. We developed multinomial logistic regression models using data collected in the early pandemic to estimate the probability a tested sample was tested 0-3, 4-6, 7-9, or \>9 months from infection based on the qualitative anti-N assay results. Then we applied this model to the CBS and APL datasets to estimate rolling incidence from 2021 to 2023.
 
-We presented the rolling incidence proportion estimates in a paneled figure (@fig-rolling-incidence), displaying regression-based estimation of proportion of population infected in the last ever or in the past 3, 6, or 9 months.
+## **PRNT50 and corresponding antibody level**
 
-
-## Attack rates - TBD
-
-The cumulative attack rates is no longer of interest, as the majority of the Canadian population has been infected at least once since the Omicron wave. As the comparison rolling incidence proportion is a measurement with more meaningful public health implications.
-
-## Mixture Models - TBD
-
-In mixture models, we assume the dist of certain variables (in our case it is S/Co of Anti-N/S assay results) has two (or maybe three) distinct (though partially overlapping) distributions. Mixture models were utilized by previous studies to estimate cumulative incidence.
-
-<https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1008728>
-
-<https://www.sciencedirect.com/science/article/pii/S175543652200024X>
-
-## **NT50 and corresponding antibody level:**
-
-In evaluating whether participants possess humoral immunity levels sufficient to shield them from future infections, from either vaccination or infection, we applied a threshold of protection to the quantitative Anti-S assay results. The threshold is cited from the package insert of each assays \[Roche and Abbott\], indicating sufficient antibody level to neutralize over 50% virus, with certain times of dilution (1:20). We also presented the fluctuation of the proportion sufficiently protected over time in another figure (@fig-immunity), and we conducted sensitivity analyses in which we compared alternative threshold levels. The details of the sensitivity analysis is presented in the **Fig**. Y (haven't scratched this one yet).
+In evaluating whether participants possess anti-S antibody levels potentially providing protection against SARS-CoV-2 infection, first we estimated the positivity of anti-S assays among CBS blood donors and APL outpatients by applying manufacturers' cutoffs related to the presence of antibody. Then we applied the cutoffs used by previous researchers to estimate the proportion of population with relatively high antibody titers. These cutoffs are associated with a 50% reduction at plague reduction neutralization test (PRNT) at 1:120 dilution. Additionally, we conducted stratified analysis by immunization status.
 
 <br>
 
 # Results
 
-\[Describe fig: seroprevalence\] A paragraph about test sample positivity, Rogen-Gladen adjusted seroprevalence and Bayesian model adjusted seroprevalence. Describe the trend of changing overtime, difference and consistency among different adjusting methos, regions and datasets. (Cite figures accordingly if necessary.)The datasets had similar seropositivity earlier in the pandemic but diverged after May 2022 due to greater waning sensitivity in the Abbott assay used by APL (Figure X).RG and Bayesian adjustments had minimal impact, increasing sero-prevalence estimates by 2.04% for the CBS Alberta subset and 7.76% for APL (Figure X).
+The datasets had similar anti-N seropositivity earlier in the pandemic but diverged after May 2022 due to greater waning sensitivity in the Abbott anti-N assay used by APL (Figure 1). RG and Bayesian adjustments had minimal impact, increasing seroprevalence estimates by 2.04% for the CBS Alberta subset and 7.76% for APL (Panel A), according to the estimates in October 2022. Our regression-based approaches increased concordance between estimated seropositivity (Panel B) and led to more similar estimates of rolling incidence (Panel C). The gap between CBS and APL seropositivity estimates for October 2022 was 48% using raw seropositivity, 15% after transforming CBS to Abbott, and 14% after transforming APL to Roche.
 
-\[Describe fig: seroprevalence based on raw/transformed data\] Our regression-based approaches increased concordance between estimated seropositivity (Figure X). However, we still observed divergence after May 2022.The gap between CBS and APL seropositivity estimates for October 2022 was 48% using raw seropositivity, 15% after transforming CBS to Abbott, and 14% after transforming APL to Roche.
+\[Should we use paneled fig our separate figures?\]
 
-\[Describe fig: rolling inc prop\] In the rolling incidence estimates, we obderved more similar estimates of rolling incidence in each panels. The difference on rolling incidence estimates ar October 2022 are X%, X%, X% and X%, for ever infected %, 3-month, 6-month, and 9-month rolling incidence, respectively.
+Regarding the results of the anti-S assay, among CBS blood donors 95% had seroconversion by the end of 2021, with over 90% achieving high antibody levels that potentially protect them from the infection of SARS-CoV-2 (Figure 2). In contrast, among APL outpatients, 90% had seroconversion at the same time, yet only 80% reached high antibody titers, leaving a wider gap (10%) between assay positivity and the proportion of population gained strong immunity. In the stratified analysis, 75% of the unvaccinated APL outpatients gained anti-S seropositivity by the end of 2021, with over 60% having high antibody titers. Among outpatients who received at least one dose of vaccine, 98% of them are anti-S positive at the same time, and over 95% achieved high antibody titers.
 
-\[Describe fig: NT50 and corresponding Ab level\] A paragraph about estimated proportion with sufficient humoral immunity to protect them from future possible SARS-CoV-2 infection. This proportion is also adjusted by Rogen-Gladen equation and Bayesian models.
+\[we need to adjust this part to match Iris' imputation on vax status\]
 
 <br>
 
 # Discussion
 
-The gap between Rogen-Gladen adjusted sero-prevalence and unadjused sero-positivity: In our case, the sensitivity is where most variance come from. As the proof of excellent assay performance, assay manufacturer published the sensitivity and specificity of their assay. However, their test performance figures derived from hospitalized patients with more severe symptoms, who were samples at the time when sero antibody level reached its highest level. Due to the representativeness issue, it is not recommended only take the test performance figures published by the assays manufacturer into consideration.
+## **RG and Bayesian models**
 
-Since sens is imperfect (0.85--1.0) and specificity is mostly 100% trustworthy (\~1.0), the R-G equation can be simplified as:
+After applying RG and Bayesian models seroprevalence estimating, the RG adjusted seroprevalence increased 2.04% among CBS blood donors and 7.76% among APL outpatients. The wider gap in APL can be explained by lower assay sensitivity we applied. The test performance figures, including sensitivity and specificity, were estimated by previous researchers \[citation: Public Health England\] in England. Where sensitivities are 0.927 for Abbott anti-N assay and 0.972 for Roche anti-N assay, and specificities are mostly 1.0 (0.999 and 0.998 for Abbott and Roche anti-N assay respectively). Therefore the RG equation can be simplified as:
 
 $$
 Prevalence = \frac{TestPositivity}{Sens}
 $$
 
-According to the equation above, the worse the sensitivity (smaller in value), the larger the gap between the adjusted and unadjusted. We found larger gaps among the Abbott assay results, as the sensitivity we used for Abbott assays are smaller, when compared to sensitivity we used for Roche assays.
+Where "Prevalence" indicate simplified RG adjusted seroprevalence estimates. "Test Positivity" indicates the proportion of test samples with positive results. "Sens" indicate the sensitivity of the anti-N assay.
+
+According to **Eq**.3, the worse the sensitivity (smaller in value), the larger the gap between the adjusted and unadjusted seroprevalence curves in the figure. We found larger gaps among the Abbott assay results, as the sensitivity we used for Abbott assays are smaller, when compared to sensitivity we used for Roche assays.
 
 ```{=html}
 <!---
@@ -231,7 +214,11 @@ Variances among data (APL, CBS, CANPATH) is not the major focus of this study, Y
 So we won't discuss the among-dataset differences on measurements in the discussion section
 --->
 ```
-\[Difference/Consistence among adjusting methods, regions in Canada\] Is our finding consistent with previous studies?\]
+## Comparison among studies
+
+\[Difference/Consistence among adjusting methods, regions in Canada\] Is our finding consistent with previous studies?
+
+## **Strength and Limitation**
 
 \[Strength and Limitation\] In our sensitivity analysis, we found the regression models used for Roche--\>Abbott transformation is sensitive to the ratio of positive vs negative cases in the training data.
 
@@ -371,19 +358,24 @@ knitr::include_graphics("../4_output/figs/Figure.2 Immunity.png")
 
 ## Supplement Methods
 
-(to-be-deleted: we do not utilize most of the demographic variabes in our analysis) Besides of serology test results and demographic data, CBS has linked the administrative data for the cohort, which provided additional information on their hospitalizations, clinic visits, diagnoses, COVID vaccinations, and long-term disability claims. Similarly, AHS and CANPATH have completed linkages and included additional vaccination history.
-
 ```{=html}
 <!---
-Notes: Current ver of APL has completed very limited data linkage, which only includes PCR test results/time and vaccination time. The paragraph briefly describe the data linkage for three datasets, however for now we do not need those variables from linked administrative data.
+Notes: Sub-sections to be added for the supplemental section:
 
-Delete this part later
+Yuan's comments: add a short paragraph explaining the definition of sensitivity and specificity, difference in those figures btw Roche and Abbott, and their potential effect on RG-adjusted sero-prevalence estimates. This para can be added into somewhere in the discussion section.
+
+Definition on sens and specs are too basic to our potential readers in AJE. Let's focus on their potential effect then.
 --->
 ```
+\[A short paragraph about weighting\] Our analysis is based on individual level data. As we are calculated measurements at a monthly scale, samples sampled at different months were unweighted as they contributed independently to each month's point prevalence estimates. While in all of those three dataset, it's possible to have one individual being sampled multiple times within the same month, in this case we applied weights to each individual according to the number of samples they have in the same month. In regression model training, individuals who provided multiple samples were also down-weighted according to the number of samples they provided.
 
-A short paragraph about weighting: Our analysis is based on individual level. As we are calculating measurements at a monthly scale, samples sampled at different months were unweighted as they contributed independently to each month's point prevalence estimates. While in all of those three dataset, it's possible to have one individual being sampled multiple times within the same month, in this case we applied weights to each individual according to the number of samples they have in the same month. In regression model training, individuals who provided multiple samples were also down-weighted according to the number of samples they provided. 
+\[A paragraph about the training data\] Cite the table summarizing the features of training data (Table S1). Clarify which data has matched assay results, and what data we used for each part of analysis.
 
-A paragraph about the training data: Cite the table summarizing the features of training data (Table S1). Clarify which data has matched assay results.
+Regarding the data we used to train the regression models, we identified several studies conducted in the early phases of the Covid-19 pandemic (in 2020). Blood samples are collected from France, Jamaica, Japan and UK \[**add citation**\], with known sample positivity at the time of collection. The data from France and UK includes anti-N assay data for convalescent patients, the data provided by Osaka Metropolitan University in Japan included anti-N assay results for both convalescent patients and negative controls, and the data from Jamaica are used for negative controls only. Among all four datasets, the samples in Jamaica, Japan and UK were tested both for Abbott anti-N and Roche anti-N assay, which makes them suitable for transformation model training (figure).
+
+\[A short paragraph about anti-N sensitivity analysis\]
+
+\[A short paragraph about anti-S sensitivity analysis\]
 
 {{< pagebreak >}}
 
