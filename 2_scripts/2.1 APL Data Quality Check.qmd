@@ -19,7 +19,16 @@ When you click the **Render** button a document will be generated that includes 
 load(file = "../1_data/private/RFD4682e.RData")
 
 # Second version of APL: provided by Carmen in Jan 2024
-
+library(readxl)
+RFD4682_v2 <- read_excel("../1_data/private/RFD4682_Data_for release Jan 2024.xlsx", 
+    sheet = "RFD4682_Full_Data", col_types = c("text", 
+        "text", "text", "text", "text", 
+        "date", "text", "text", "date", "date", 
+        "text", "text", "numeric", "text", 
+        "text", "text", "text", "text", "numeric", 
+        "numeric", "text", "text", 
+        "numeric", "numeric", "numeric"))
+View(RFD4682_v2)
 ```
 
 ## Load paks

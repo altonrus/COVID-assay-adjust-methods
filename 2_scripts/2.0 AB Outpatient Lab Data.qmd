@@ -78,4 +78,3 @@ table(is.na(RFD4682_e$ULI_IDe))       # NA = 11298
 length(unique(RFD4682_e$PERSON_IDe))     # Unique = 189864-1
 table(is.na(RFD4682_e$PERSON_IDe))       # NA = 2973
 ```
-

@@ -534,7 +534,9 @@ p09v1<-tb_abbsv1_melt %>%
   ggtitle("Stratum: at least 2 doses")
 p09v1
 ```
+
 ##### Is 1-doser the cause of the "peak" and "bucket"?
+
 ```{r}
 tb_abbsv11<-APLs %>%
   .[.$abb_s_AU==1 & .$vax %in% c("1 Dose") ,] %>%
@@ -571,6 +573,7 @@ p09v11<-tb_abbsv11_melt %>%
   ggtitle("Stratum: 1 dose only")
 p09v11
 ```
+
 #### Add time indicator to the figure
 
 ```{r}
@@ -776,6 +779,7 @@ rm(df4_schange_new_corrected2)
 ```
 
 #### 4.3.1 Data cleaning and merging
+
 ```{r}
 # The imputed vaccination variable
 table(CBS_vax_imputed$series_s, useNA = 'ifany')
@@ -794,7 +798,9 @@ CBSs_AB$series_bin[CBSs_AB$series_s!="not vaccinated/1st only" & !is.na(CBSs_AB$
 
 table(CBSs_AB$series_s, CBSs_AB$series_bin, useNA = 'ifany')
 ```
-Iris algorithm cannot take unvaccinated and 1 dose only apart. In our case we can create a binary var <2 doses and >=2 doses, so we can do the same stratification with APL data.
+
+Iris algorithm cannot take unvaccinated and 1 dose only apart. In our case we can create a binary var \<2 doses and \>=2 doses, so we can do the same stratification with APL data.
+
 ```{r}
 # re-do the melt data: no vax or 1 dose only
 tb_rosv0<-CBSs_AB %>%
@@ -869,4 +875,3 @@ p13v1<-tb_rosv1_melt %>%
   ggtitle("Stratum: at least 2 doses")
 p13v1
 ```
-
