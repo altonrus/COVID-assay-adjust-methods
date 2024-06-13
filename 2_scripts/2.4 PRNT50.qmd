@@ -15,11 +15,12 @@ This qmd file including the codes we utilized for estimating the proportion of t
 
 ```{r}
 # The CBS Data, extracted using "CITF_CBS_desc_stats.Rmd"
+
+load(file = "../1_data/private/CBS.RData") # original CBS
 load(file = "../1_data/private/CBSs.RData") # a clean subset of CBS
 # Notes: Y.Yuan confirmed on 01-May-2024 the ver 2023-11-30 of CBS is no longer the last ver. The most recent CBS data has 2023 data included but it's not adding new info to our project so we are still using the 2023-11-30 ver of CBS.
 
 # APL Data
-load()
 load(file = "../1_data/private/APLs.RData") # a clean subset
 ```
 
@@ -27,121 +28,38 @@ load(file = "../1_data/private/APLs.RData") # a clean subset
 
 ```{r}
 library(dplyr)         # Data management
-#library(reshape2)      # for melt() function
+library(reshape2)      # for melt() function
 library(ggplot2)       # ggplot
 library(zoo)           # for year-month format
 ```
 
 ## 1. Clean the APL data
 
-#### 1.1 Use the APLs created
+#### 1.1 Use the APLs created, add anti-S assay results and interp
 
 ```{r}
-APLs<-merge(APLs, select(RFD4682_e, order_ID, 
-                   'RBD-IgGII_RESULT', `RBD-IgGII_INTERP`,`RBD-IgGII_RESULT_DATE`
+APLs<-merge(APLs, select(RFD4682_ev2, order_ID, 
+                   `RBD-IgGII_RESULT`, `RBD-IgGII_INTERP`,`RBD-IgGII_RESULT_DATE`
                    ), by="order_ID",all=T)
-colnames(APLs)<-c(names(APLs)[1:15], "abbott_s", "pos_abbott_s", "month_abbott_s")
-APLs$abb_s_index<-grepl("index", APLs$abbott_s, ignore.case = T)
-APLs$abb_s_AU<-grepl("ml", APLs$abbott_s, ignore.case = T)
-table(APLs$abb_s_index, APLs$abb_s_AU)
-# 36 samples missing abbott_s info
-APLs$abb_s_index[APLs$abb_s_index==0 & APLs$abb_s_AU==0]<-NA
-APLs$abb_s_AU[is.na(APLs$abb_s_index)]<-NA
-
-APLs$abb_s_AU<-as.numeric(APLs$abb_s_AU)
-APLs$abb_s_index<-as.numeric(APLs$abb_s_index)
-table(APLs$abb_s_index, APLs$abb_s_AU, useNA = 'ifany')
-
-# remove units
-APLs$abbott_s<-gsub('[a-z]', '', APLs$abbott_s)
-APLs$abbott_s<-gsub('[A-Z]', '', APLs$abbott_s)
-APLs$abbott_s<-gsub('[/<>]', '', APLs$abbott_s)
-APLs$abbott_s<-as.numeric(APLs$abbott_s)
+colnames(APLs)<-c(names(APLs)[1:10], "abbott_s", "pos_abbott_s", "month_abbott_s")
 
 # check the COI
-summary(APLs[APLs$abb_s_index==1 & APLs$pos_abbott_s=="Positive",]$abbott_s)
-# 1.4 - 9.6 the COI is 1.4 not 1?
-summary(APLs[APLs$abb_s_index==1 & APLs$pos_abbott_s=="Negative",]$abbott_s)
-# 8.1 index but negative?
-
-summary(APLs[APLs$abb_s_AU==1 & APLs$pos_abbott_s=="Positive",]$abbott_s)
+summary(APLs[APLs$pos_abbott_s=="Positive",]$abbott_s)
 # 50 - 800000 the COI = 50 good
-summary(APLs[APLs$abb_s_AU==1 & APLs$pos_abbott_s=="Negative",]$abbott_s)
+summary(APLs[APLs$pos_abbott_s=="Negative",]$abbott_s)
 # 0-49, COI = 50 good
-
-# COI for anti_n
-summary(APLs[APLs$pos_abbott==1 & !is.na(APLs$abbott_n),]$abbott_n)
-# 1.4 - 14.19 the COI = 1.4
-summary(APLs[APLs$pos_abbott==0 & !is.na(APLs$abbott_n),]$abbott_n)
-# 0.001 - 1.39
-
-table(APLs$pos_abbott)
 ```
 
-```{r}
-# abbott_n misclassified as abbott_s with index?
-APLs %>%
-  .[is.na(.$abbott_n) & .$abb_s_index==1 & !is.na(.$abb_s_index),] # N=104946
-
-APLs %>%
-  .[is.na(.$abbott_n) & .$abb_s_AU==1 & !is.na(.$abb_s_AU),] # N=69108
-
-APLs %>%
-  .[!is.na(.$abbott_n) & .$abb_s_index==TRUE & !is.na(.$abb_s_index),] # N=0
-
-APLs %>%
-  .[!is.na(.$abbott_n) & .$abb_s_AU==1 & !is.na(.$abb_s_AU),]  # N=40690
-
-APLs %>%
-  .[!is.na(.$abbott_n) & is.na(.$abb_s_AU),]                   # N=36
-
-table(is.na(APLs[APLs$abb_s_AU==1,]$abbott_n))
-
-# month of data collection for those five groups:
-# Group 1: "Abbott-S" (Index) only
-fivenum(APLs[APLs$abb_s_index==1,]$samplemonth, na.rm = T)
-
-# Group 2: True Abbott-S (AU) only
-fivenum(APLs[is.na(APLs$abbott_n) & APLs$abb_s_AU==1,]$samplemonth, na.rm = T)
-
-# Group 3: True Abbott-S (AU) and Abbott-N?
-fivenum(APLs[!is.na(APLs$abbott_n) & APLs$abb_s_AU==1,]$samplemonth, na.rm = T)
-
-# Group 4: no available anti-S data, only Abbott-N
-fivenum(APLs[!is.na(APLs$abbott_n) & is.na(APLs$abb_s_AU),]$samplemonth, na.rm = T)
-```
-
-**Notes**: So no matter what it really is it can't be Abbott-S-RBD and shall not be included in anti-S analysis. Updates on May 28th: Carmen replied and confirmed they are misplaced anti-N assay results.
-
-#### 1.2 Move the misplaced anti-N back to where they are
-
-```{r}
-APLs$abbott_n[APLs$abb_s_index==1 &
-              !is.na(APLs$abbott_s)]<-APLs$abbott_s[APLs$abb_s_index==1 & 
-                                                   !is.na(APLs$abbott_s)]
-APLs$abbott_s[APLs$abb_s_index==1 & !is.na(APLs$abbott_s)]<-NA
-
-# add anti-N interpretation
-APLs$pos_abbott[APLs$abbott_n<1.4 & !is.na(APLs$abbott_n)]<-0
-APLs$pos_abbott[APLs$abbott_n>=1.4 & !is.na(APLs$abbott_n)]<-1
-
-# redo the anti-S interpretation
-APLs$pos_abbott_s<-rep(NA,214780)
-APLs$pos_abbott_s[APLs$abbott_s<50 & !is.na(APLs$abbott_s)]<-0
-APLs$pos_abbott_s[APLs$abbott_s>=50 & !is.na(APLs$abbott_s)]<-1
-table(APLs$pos_abbott_s, useNA = 'ifany')
-```
+**Notes**: So no matter what it really is it can't be Abbott-S-RBD and shall not be included in anti-S analysis. Updates on May 28th: Carmen replied and confirmed they are misplaced anti-N assay results. APL data has been cleaned and uploaded to the server to share with Yuan and Matthew.
 
 ## 2. Applying the COI
 
 #### 2.1 Apply COI to APL (Abbott-S) data
 
 ```{r}
-APLs$pos_abbott_s2<-rep(NA, 214780)
-APLs$pos_abbott_s2[APLs$abb_s_AU==1 & !is.na(APLs$abb_s_AU) &
-                   APLs$abbott_s>=402.36 & !is.na(APLs$abbott_s)]<-"Positive"
-APLs$pos_abbott_s2[APLs$abb_s_AU==1 & !is.na(APLs$abb_s_AU) &
-                     APLs$abbott_s<402.36 & !is.na(APLs$abbott_s)]<-"Negative"
+APLs$pos_abbott_s2<-rep(NA, 214776)
+APLs$pos_abbott_s2[APLs$abbott_s>=402.36 & !is.na(APLs$abbott_s)]<-"Positive"
+APLs$pos_abbott_s2[APLs$abbott_s<402.36 & !is.na(APLs$abbott_s)]<-"Negative"
 table(APLs$pos_abbott_s2, useNA = 'ifany')
 
 table(APLs$pos_abbott_s, APLs$pos_abbott_s2, useNA = 'ifany')
@@ -271,6 +189,7 @@ tb_melt_t4<-reshape2::melt(select(tb_ros, samplemonth, prop.ros2, prop.abbst2, s
                         value.name = "prop")
 ```
 
+
 ## 3. Making the Plot
 
 ## 3.1.1 Prepare the melt data: APL
@@ -285,7 +204,6 @@ APLs$pos_abbott_s2[APLs$pos_abbott_s2=="Negative"]<-0
 APLs$pos_abbott_s2<-as.numeric(APLs$pos_abbott_s2)
 
 tb_abbs<-APLs %>%
-  .[.$abb_s_AU==1,] %>%
   group_by(samplemonth) %>%
   summarise(n = n() , 
             pos_abbott_s= sum(pos_abbott_s, na.rm = T), 
@@ -351,6 +269,7 @@ tb_abbs_melt$study<-rep("APL", length(tb_abbs_melt$samplemonth))
 tb_ros_melt$study<-rep("CBS", length(tb_ros_melt$samplemonth))
 
 tb_APLCBS2<-rbind.data.frame(tb_abbs_melt, tb_ros_melt)
+rm(tb_abbs, tb_abbs_melt, tb_ros, tb_ros_melt)
 
 tb_APLCBS2$COI<-as.character(tb_APLCBS2$COI)
 tb_APLCBS2$COI[tb_APLCBS2$COI=="prop.abbs1"]<-"50"
@@ -445,7 +364,7 @@ p09e
 
 ```{r}
 # Add vax variable
-APLs<-merge(APLs, select(RFD4682_e, order_ID, VACCINATION_STATUS),
+APLs<-merge(APLs, select(RFD4682_ev2, order_ID, VACCINATION_STATUS),
       by="order_ID", all=T)
 
 APLs$vax<-APLs$VACCINATION_STATUS
@@ -453,16 +372,16 @@ APLs<-select(APLs, -c("VACCINATION_STATUS"))
 table(APLs$vax, useNA = 'ifany')
 
 # Add days since imm (vax)
-APLs<-merge(APLs, select(RFD4682_e, order_ID, DAYS_SINCE_IMM),
+APLs<-merge(APLs, select(RFD4682_ev2, order_ID, DAYS_SINCE_IMM),
       by="order_ID", all=T)
 ```
 
 **Notes:** In this part we also do the analysis for those got vaccinated \>=28 days, however it does not change the shape of the lines so much. So we just group by doses (0/\>=1).
 
 ```{r}
-# re-do the melt data: no vax
+# re-do the melt data: no vax 
 tb_abbsv0<-APLs %>%
-  .[.$abb_s_AU==1 & (.$vax %in% c("Not Immunized", "Pre-Immunization", "1 Dose")),] %>%
+  .[.$vax %in% c("Not Immunized", "Pre-Immunization"),] %>%
   group_by(samplemonth) %>%
   summarise(n = n() , 
             pos_abbott_s= sum(pos_abbott_s, na.rm = T), 
@@ -473,16 +392,16 @@ tb_abbsv0$prop.abbs2<-tb_abbsv0$pos_abbott_s2/tb_abbsv0$n
 
 # clean NAs
 tb_abbsv0<-tb_abbsv0[!is.na(tb_abbsv0$samplemonth),]
+tb_abbsv0<-tb_abbsv0[!tb_abbsv0$pos_abbott_s==0,]
 
 tb_abbsv0_melt<-reshape2::melt(select(tb_abbsv0, -c(2:4)), 
                         id.vars = c("samplemonth"),
                         variable.name = "COI",
                         value.name = "prop")
 
-# re-do the melt data: at least 1 dose
+# re-do the melt data: 1 dose only
 tb_abbsv1<-APLs %>%
-  .[.$abb_s_AU==1 & .$vax %in% c("1-2 Doses","2 Doses","3 Doses",
-                             "4 Doses") ,] %>%
+  .[.$vax %in% c("1 Dose") ,] %>%
   group_by(samplemonth) %>%
   summarise(n = n() , 
             pos_abbott_s= sum(pos_abbott_s, na.rm = T), 
@@ -495,6 +414,25 @@ tb_abbsv1$prop.abbs2<-tb_abbsv1$pos_abbott_s2/tb_abbsv1$n
 tb_abbsv1<-tb_abbsv1[!is.na(tb_abbsv1$samplemonth),]
 
 tb_abbsv1_melt<-reshape2::melt(select(tb_abbsv1, -c(2:4)), 
+                        id.vars = c("samplemonth"),
+                        variable.name = "COI",
+                        value.name = "prop")
+
+# re-do the melt data: 2 doses +
+tb_abbsv2<-APLs %>%
+  .[.$vax %in% c("1-2 Doses", "2 Doses", "3 Doses", "4 Doses") ,] %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_abbott_s= sum(pos_abbott_s, na.rm = T), 
+            pos_abbott_s2= sum(pos_abbott_s2, na.rm = T)
+            )
+tb_abbsv2$prop.abbs1<-tb_abbsv2$pos_abbott_s/tb_abbsv2$n
+tb_abbsv2$prop.abbs2<-tb_abbsv2$pos_abbott_s2/tb_abbsv2$n
+
+# clean NAs
+tb_abbsv2<-tb_abbsv2[!is.na(tb_abbsv2$samplemonth),]
+
+tb_abbsv2_melt<-reshape2::melt(select(tb_abbsv2, -c(2:4)), 
                         id.vars = c("samplemonth"),
                         variable.name = "COI",
                         value.name = "prop")
@@ -519,7 +457,7 @@ p09v0
 ```
 
 ```{r}
-# Plot: at least 1 dose
+# Plot: 1 dose only
 p09v1<-tb_abbsv1_melt %>%
   ggplot(aes(x=samplemonth, y=prop, group=COI, colour=COI)) +
   geom_point(colour="red") +
@@ -531,35 +469,13 @@ p09v1<-tb_abbsv1_melt %>%
   scale_linetype_manual("", values=c(1,3), labels = c("APL-Abbott (COI=50)", 
                                                       "APL-Abbott (COI=402)"))+
   theme(legend.position='top')+
-  ggtitle("Stratum: at least 2 doses")
+  ggtitle("Stratum: 1 dose only")
 p09v1
 ```
 
-##### Is 1-doser the cause of the "peak" and "bucket"?
-
 ```{r}
-tb_abbsv11<-APLs %>%
-  .[.$abb_s_AU==1 & .$vax %in% c("1 Dose") ,] %>%
-  group_by(samplemonth) %>%
-  summarise(n = n() , 
-            pos_abbott_s= sum(pos_abbott_s, na.rm = T), 
-            pos_abbott_s2= sum(pos_abbott_s2, na.rm = T)
-            )
-tb_abbsv11$prop.abbs1<-tb_abbsv11$pos_abbott_s/tb_abbsv11$n
-tb_abbsv11$prop.abbs2<-tb_abbsv11$pos_abbott_s2/tb_abbsv11$n
-
-# clean NAs
-tb_abbsv11<-tb_abbsv11[!is.na(tb_abbsv11$samplemonth),]
-
-tb_abbsv11_melt<-reshape2::melt(select(tb_abbsv11, -c(2:4)), 
-                        id.vars = c("samplemonth"),
-                        variable.name = "COI",
-                        value.name = "prop")
-```
-
-```{r}
-# Plot: 1 dose only
-p09v11<-tb_abbsv11_melt %>%
+# Plot: 2 doses +
+p09v2<-tb_abbsv2_melt %>%
   ggplot(aes(x=samplemonth, y=prop, group=COI, colour=COI)) +
   geom_point(colour="red") +
   geom_line(aes(linetype=COI), colour="red")  +
@@ -570,9 +486,11 @@ p09v11<-tb_abbsv11_melt %>%
   scale_linetype_manual("", values=c(1,3), labels = c("APL-Abbott (COI=50)", 
                                                       "APL-Abbott (COI=402)"))+
   theme(legend.position='top')+
-  ggtitle("Stratum: 1 dose only")
-p09v11
+  ggtitle("Stratum: 2 doses +")
+p09v2
 ```
+
+##### Is 1-doser the cause of the "peak" and "bucket"?
 
 #### Add time indicator to the figure
 
@@ -875,3 +793,63 @@ p13v1<-tb_rosv1_melt %>%
   ggtitle("Stratum: at least 2 doses")
 p13v1
 ```
+
+
+## 4.4 The vaccination policy and those "1-Doser"
+
+#### 4.4.1 add prop (1-dose only)
+```{r}
+# number of personals in each month
+tb_abbsvall<-APLs %>%
+  .[!(.$vax %in% c("No_ULI")),] %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_abbott_s= sum(pos_abbott_s, na.rm = T), 
+            pos_abbott_s2= sum(pos_abbott_s2, na.rm = T)
+            )
+tb_abbsvall$n.all<-tb_abbsvall$n
+
+tb_abbsv1<-merge(tb_abbsv1, select(tb_abbsvall, samplemonth, n.all),
+      by="samplemonth", all.x = T, all.y = F)
+tb_abbsv1$prop.d1<-tb_abbsv1$n/tb_abbsv1$n.all
+```
+
+#### 4.4.2 Making the plot:
+```{r}
+p09v1a<-tb_abbsv1 %>%
+  ggplot(aes(x=samplemonth)) +
+  geom_point(aes(y=prop.abbs1), colour="red") +
+  geom_point(aes(y=prop.abbs2), colour="red") +
+  geom_line(aes(y=prop.abbs1), colour="red")  +
+  geom_line(aes(y=prop.abbs2), linetype=2, colour="red")  +
+  geom_line(aes(y=prop.d1), colour="darkgrey") +
+  theme_bw() + 
+  ylim(c(0,1)) +
+  xlab("Time of Sample Collection") + 
+  ylab("Proportion")+ 
+  scale_linetype_manual("", values=c(1,3), labels = c("APL-Abbott (COI=50)", 
+                                                      "APL-Abbott (COI=402)"))+
+  theme(legend.position='top')+
+  ggtitle("Stratum: 1 dose only")
+p09v1a
+```
+
+## 4.4.3 Check the time gap btw 1st dose and 2nd dose. 
+```{r}
+APL_vax<-RFD4682_v2_vaxe %>%
+  select(ULI, ULI_IDe, DOSE_COUNT, IMMUNIZATION_DATE) %>%
+  .[.$DOSE_COUNT==1 | .$DOSE_COUNT==2, ]
+
+APL_vax<-reshape(APL_vax[,c(2:4)], idvar="ULI_IDe", timevar = "DOSE_COUNT",
+        direction = "wide")
+
+# Calculate time gap btw 1st and 2nd dose
+APL_vax$time_gap<-as.Date(APL_vax$IMMUNIZATION_DATE.2)-
+                  as.Date(APL_vax$IMMUNIZATION_DATE.1)
+
+# check distribution
+hist(as.numeric(APL_vax$time_gap), breaks=25)
+
+summary(as.numeric(APL_vax$time_gap))
+```
+

@@ -39,11 +39,12 @@ table(CBS$province, useNA = 'ifany')
 # The CBSs data, for prob model only
 load(file = "../1_data/private/CBSs.RData")
 
+# How many obs we have in each provinces?
+table(CBSs$province, useNA = 'ifany') # n(AB)=124008
+
 # The APL data
-load(file = "../1_data/private/RFD4682e.RData")
-
-# The cleaned ver of Canpath data
-
+load(file = "../1_data/private/RFD4682e.RData")   # ver.1
+load(file = "../1_data/private/RFD4682ev2.RData") # ver.2 with additional anti-N data
 ```
 
 ## Dataset from previous studies for model building
@@ -142,7 +143,6 @@ dta_04_neg$pso <- dta_04_neg$month_pso*30
 dta_04_neg$sample_wt<-rep(1, length(dta_04_neg$pid))
 dta_04_neg$study<-rep(4.1, length(dta_04_neg$pid))
 ```
-
 
 ```{r}
 ## Data-06, shared by Dr Paul Bieniasz
@@ -265,6 +265,7 @@ summary(mnlm03)
 ```
 
 #### 1.2 Model mnlm04 same model but for abbott
+
 ```{r}
 # Model 04  takes sample weights into account
 mnlm04<-multinom(relevel(as.factor(time_pso), ref = "never_inf") ~ log_abbott_n, 
@@ -272,8 +273,6 @@ mnlm04<-multinom(relevel(as.factor(time_pso), ref = "never_inf") ~ log_abbott_n,
 summary(mnlm04)
 ## use estimates/SE and 1.96 to calculate p-value manually, should be <0.001
 ```
-
-
 
 ##====================== Part II. Applying the model to Sero data =============##
 
@@ -485,6 +484,7 @@ tb_all<-CBSs %>%
 # clean NAs
 tb_all<-tb_all[!is.na(tb_all$region), ]
 ```
+
 #### 2.2.3 Make plots by region
 
 ```{r}
@@ -521,27 +521,39 @@ p02 + facet_wrap(~region)
 #### 2.3 Apply model to APL data
 
 #### 2.3.1 Load & Clean
+
 ```{r}
 summary(RFD4682_e$N)
 # The codebook does not specify what types of anti-N assay is applied, given the value we assume they are using Abbott anti-N assay (small numbers)
 
 # create a subset of APL
-APLs<-RFD4682_e %>%
-  select(order_ID, AGE_AT_COLLECTION, GENDER, N, `N-IgG_INTERP`, Col_Month, PAT3)
+APLs<-RFD4682_ev2 %>%
+  select(order_ID, SERO_ID, clean_IDe,
+         AGE_AT_COLLECTION, GENDER, `N-IgG_RESULT`,`N-IgG_INTERP`, COLLECTION_DATE)
 
 # unify colnames
-colnames(APLs)<-c("order_ID","age","gender","abbott_n", "pos_abbott","samplemonth","fsa")
-APLs$samplemonth<-as.yearmon(APLs$samplemonth)
+colnames(APLs)<-c("order_ID", "SERO_ID", "clean_IDe",
+                  "age","gender","abbott_n", "pos_abbott","sampledate")
+
+APLs$samplemonth<-as.yearmon(APLs$sampledate)
 
 # add log_abbott_n
-## find 0 values bf transformation
+## find 0 values bf transformation, correct them as 0.001
 APLs$abbott_n[APLs$abbott_n==0 & 
               !is.na(APLs$abbott_n)]<-0.001
 
 APLs$log_abbott_n <- log(APLs$abbott_n)
+
+# Recode abbott_n test results pos/neg as 1/0
+APLs$pos_abbott[APLs$pos_abbott=="Negative"]<-0
+APLs$pos_abbott[APLs$pos_abbott=="Positive"]<-1
+APLs$pos_abbott<-as.numeric(APLs$pos_abbott)
+
+
 ```
 
 #### 2.3.2 Apply model (Abbott)
+
 ```{r}
 # Apply the model mnlm04
 APLs_prob_r<-as.data.frame(predict(mnlm04, newdata = APLs, "probs")) # num of >3 months = 0
@@ -575,6 +587,7 @@ tb_APL<-tb_APL[!is.na(tb_APL$samplemonth) & !is.na(tb_APL$ever_inf), ]
 ```
 
 #### 2.3.3 making Plots
+
 ```{r}
 tb_melt_APL<-reshape2::melt(select(tb_APL, 1,3:6), 
                         id.vars = c("samplemonth"),
@@ -588,7 +601,9 @@ p06<-tb_melt_APL %>%
   theme_bw()
 p06
 ```
-**Additional plotting** 
+
+**Additional plotting**
+
 ```{r}
 # merge monthly summary table: CBS + APL
 tb_CBS<-tb_all[tb_all$region=="Alberta",] %>%
@@ -615,7 +630,6 @@ p07<-tb_melt_2 %>%
 p07 + facet_wrap(~inf)
 ```
 
-
 #### 2.4 Apply model to CANPATH data
 
 ```{r}
@@ -625,11 +639,12 @@ Canpath_all <- read.csv("~/COVID-assay-adjust-methods/1_data/private/CANPATH/DAO
 table(Canpath$C1_CITF_ASSAY_ID)
 ```
 
-##===================== Part III. Exp: Reg Model Abbott N~Roche N =============##
+##===================== Part III. Exp: Reg Model Abbott N\~Roche N =============##
 
-This idea came from Alton, we can use the data we have for prob model training to generate another model: Abbott-N~Roche-N. Then apply the model to the CBS data and generate the sero-prevalence curve, see if it gets closer to the APL curve
+This idea came from Alton, we can use the data we have for prob model training to generate another model: Abbott-N\~Roche-N. Then apply the model to the CBS data and generate the sero-prevalence curve, see if it gets closer to the APL curve
 
-#### 3.1.1 The linear (log) model: Abbott ~ Roche
+#### 3.1.1 The linear (log) model: Abbott \~ Roche
+
 ```{r}
 # The linear model using log_e transformed abbott_n and roche_n
 
@@ -672,7 +687,8 @@ lm01<-glm(log_abbott_n ~ log_roche_n,
 summary(lm01) 
 ```
 
-#### 3.1.2  The linear (log) model: Roche ~ Abbott
+#### 3.1.2 The linear (log) model: Roche \~ Abbott
+
 ```{r}
 lm01r<-glm(log_roche_n ~ log_abbott_n, 
           family = "gaussian",
@@ -680,8 +696,8 @@ lm01r<-glm(log_roche_n ~ log_abbott_n,
 summary(lm01r) 
 ```
 
-
 #### 3.2.1 Apply the model lm01 to the CBS data
+
 ```{r}
 log_abbott_n<-predict(lm01, newdata = CBSs, "response")
 summary(log_abbott_n)
@@ -711,6 +727,7 @@ CBSs$pos_roche<-if_else(CBSs$roche_n<=1, 0, 1, missing = NA)
 ```
 
 #### 3.2.2 Apply model lm01r to APL data
+
 ```{r}
 APLs$log_roche_n<-predict(lm01r, newdata = APLs, "response")
 
@@ -726,6 +743,7 @@ APLs$pos_abbott<-as.numeric(APLs$pos_abbott)
 ```
 
 #### 3.3.1 plot: sero-prevalence, using predicted Abbott positivity
+
 ```{r}
 tb_abb<-CBSs %>%
   group_by(samplemonth, region) %>%
@@ -754,6 +772,7 @@ p03 + facet_wrap(~region)
 ```
 
 #### 3.3.2 plot: sero-prevalence, using predicted Roche pos
+
 ```{r}
 tb_ro<-APLs %>%
   group_by(samplemonth) %>%
@@ -780,7 +799,9 @@ p03r<-tb_ro_melt %>%
   theme_bw() 
 p03r
 ```
+
 #### 3.3.3 Plot both roche and abbott, raw/transformed in on figure
+
 ```{r}
 # modify melted data
 
@@ -818,11 +839,8 @@ tb_alberta$study<-paste(tb_alberta$data,
                         rep(")", length(tb_alberta$data) ))
 ```
 
-Alton's comments:
-- solid/dash to indicate raw/transformed
-- red/blue to indicate Abbott/Roche
-- Merge the color & linetype indicator in the legend
- 
+Alton's comments: - solid/dash to indicate raw/transformed - red/blue to indicate Abbott/Roche - Merge the color & linetype indicator in the legend
+
 ```{r}
 # making the plot, either those codes will work
 p03.3<-tb_alberta %>%
@@ -854,6 +872,7 @@ p03.3<-tb_alberta %>%
 
 p03.3
 ```
+
 The gap between CBS and APL seropositivity estimates for October 2023 was X% using raw seropositivity, Y% after transforming CBS to Abbott, and Z% after transforming APL to Roche.
 
 ```{r}
@@ -867,8 +886,8 @@ tb_alberta %>%
   mutate(Z = .$prop[4] - .$prop[2])
 ```
 
-
 #### 3.4 Plot the correlation btw Roche-N and Abbott-N:
+
 ```{r}
 # The clear linear relation btw log_roche and log_abbott:
 plot(CBSs$log_roche_n, CBSs$log_abbott_n) # this linear association is intriduced by lm01
@@ -897,7 +916,9 @@ p04<-dta_all %>%
 
 p04
 ```
+
 #### Add alternative COI
+
 ```{r}
 ## add two new COI, those two were transformed using the model lm01 and lm01r
 df.temp<-as.data.frame(c(log(1.0)))
@@ -949,15 +970,20 @@ p05<-dta_CBS %>%
 
 p05
 ```
+
 #### Alton suggests using marginal dist with {ggExtra}
+
 ```{r}
 ggMarginal(p04, groupColour = TRUE, groupFill = TRUE) # log-scale
 ggMarginal(p05, groupColour = TRUE, groupFill = TRUE) # with CBS matched data
 ```
+
 #### 3.5 Create figure panel for AABB conference abstract
 
 #### 3.5.1 Panel A: the serosurveillance figure and RG/Bayesian adjustment
+
 Why: they only alow on figure.
+
 ```{r}
 ## Load Yuan's RG data
 rg_all <- read.csv("../1_data/private/df_time_rg_all.csv", row.names=1)
@@ -1014,6 +1040,7 @@ dev.off()
 ```
 
 #### 3.5.2 Panel B: transformed assay result fig
+
 ```{r}
 p03.3
 
@@ -1024,6 +1051,7 @@ dev.off()
 ```
 
 #### 3.5.3 Panel C: rolling incidence fig
+
 ```{r}
 ## recorder the dataset, relevel inf variable
 tb_melt_2$inf.f<-as.factor(tb_melt_2$inf)
@@ -1058,6 +1086,7 @@ dev.off()
 ```
 
 #### 3.5.4 Make all three figures into one
+
 ```{r}
 # use cowplot package
 p08.upper<-cowplot::plot_grid(p03.5 + xlab ("") + ylab("Seroprevalence"), 
@@ -1080,11 +1109,10 @@ cowplot::plot_grid(p08.upper, p07 + theme(legend.position = c(0.95, 0.93),
 dev.off()
 ```
 
-
-
 ## Part IV Misc Analysis
 
 #### 4.1. About the age dist in training data and CBS: The difference on age distribution might be a potential problem. Generally speaking, blood donors (CBS, FR-Leon data) is relatively older, while Covid-19 convalescent patients are younger.
+
 ```{r}
 # The FR-Leon data
 summary(dta_all[dta_all$study==1,]$age) # mean=46, median = 48
@@ -1112,6 +1140,7 @@ ks.test(dta_all[dta_all$study %in% c(1,6),]$age,
         CBSs$age[CBSs$age<100])
 # as KS test suggests, the distribution of age btw two groups is different
 ```
+
 ```{r}
 # create a sampling prob variable, based on the age dist in CBS
 CBSs$age_group<-CBS$age_group
@@ -1134,6 +1163,7 @@ dta_all<-merge(dta_all, tb1, by="age_group", all.x=T, all.y=F)
 ```
 
 #### Create a sample based on the sampling prob:
+
 ```{r}
 # a simple prob sampling:
 set.seed(2048)
@@ -1170,6 +1200,7 @@ ks.test(dta_sp$age, CBSs$age[CBSs$age<100])
 ```
 
 ## Regression on sampled data:
+
 ```{r}
 mnlm03.s<-multinom(relevel(as.factor(time_pso), ref = "never_inf") ~ log_roche_n + 
                      age + gender, 
@@ -1183,6 +1214,7 @@ summary(mnlm03.s)
 Both Alton and Yuan have address the importance of doing sensitivity analysis for the transformation models (Roche--Abbott). Originally we trained those two models with external matched data (Jamaica-Osaka-UK). We wonder if model would fit similarity with our own matched data in CBS.
 
 #### 4.2.1 Using Jamaica-Osaka-UK data:
+
 ```{r}
 # Roche-> Abbott
 summary(lm01)
@@ -1191,7 +1223,9 @@ summary(lm01)
 
 summary(lm01r)
 ```
+
 #### 4.2.2 Refit using CBS matched data
+
 ```{r}
 CBSs2<-CBSs %>%
   .[!is.na(.$roche_n) & !is.na(.$abbott_n),] #CBS matched data
@@ -1217,6 +1251,7 @@ summary(lm05r)
 ```
 
 #### Adjusting the weights of those with negative test results
+
 ```{r}
 # add a indicator for positivity of two assays
 CBSs2$ppnn[CBSs2$abbott_n > 1.4 & CBSs2$roche_n > 1]<-"pp"
@@ -1236,6 +1271,7 @@ summary(lm05r.w)
 ```
 
 #### 4.2.3 Add regression lines to the figure
+
 ```{r}
 # Modify p04 for sensitivity analysis
 p04<-dta_all %>%
@@ -1265,6 +1301,7 @@ scale_colour_manual(values = c("red", "blue", "darkgreen", "purple","blue","red"
                             shape = c(rep(16, 4), NA, NA)))) +
      ggtitle("Jamaica-Osaka-UK matched data")
 ```
+
 ```{r}
 # Calculating Beta estimates for model 01r-reverted
 (-1)*lm01r$coefficients[1]/lm01r$coefficients[2] #beta_0
@@ -1278,6 +1315,7 @@ scale_colour_manual(values = c("red", "blue", "darkgreen", "purple","blue","red"
 (-1)*lm05r.w$coefficients[1]/lm05r.w$coefficients[2] #beta_0
 1/lm05r.w$coefficients[2]                            #beta_1
 ```
+
 ```{r}
 # Refit models for CBS data, modify p05
 p04.2b<-dta_CBS %>%
@@ -1322,5 +1360,78 @@ cowplot::plot_grid(p04.2a,
                    align = 'h',
                    labels = c("A", "B"))
 dev.off()
+```
+
+#### 4.3 RG Adjusted Sero-prevalence using Bayesian model's priors
+
+##### 4.3.1 Create monthly anti-N positivity data for CBS
+```{r}
+# CBSs AB subset, N=124008
+CBSs_AB<-CBSs[CBSs$province == "AB",]
+
+# Monthly Positivity in CBS
+tb_431<-CBSs_AB %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_roche= sum(pos_roche, na.rm = T)
+            )
+tb_431$prop.raw<-tb_431$pos_roche/tb_431$n
+
+# Add RG adjustment
+tb_431$prop.adj.p1<-(tb_431$prop.raw + 0.998 -1)/(0.998 + 0.979 -1)
+tb_431$prop.adj.p2<-(tb_431$prop.raw + 0.993 -1)/(0.993 + 0.862 -1)
+tb_431$study <- rep("CBS", length(tb_431$samplemonth))
+```
+
+##### 4.3.2 Create monthly anti-N positivity data for APL
+```{r}
+# APL data, N=214776
+
+# Monthly Positivity in APL
+tb_432<-APLs %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            pos_abbott= sum(pos_abbott, na.rm = T)
+            )
+tb_432$prop.raw<-tb_432$pos_abbott/tb_432$n
+
+# remove missing data
+tb_432<-tb_432[!is.na(tb_432$samplemonth),]
+tb_432<-tb_432[tb_432$pos_abbott!=0,]
+
+# Add RG adjustment
+tb_432$prop.adj.p1<-(tb_432$prop.raw + 0.995 -1)/(0.995 + 0.960 -1)
+tb_432$prop.adj.p2<-(tb_432$prop.raw + 0.995 -1)/(0.995 + 0.838 -1)
+tb_432$study <- rep("APL", length(tb_432$samplemonth))
+
+# merge CBS and APL table
+tb_43<-bind_rows(tb_431[, c(1, 4:7)], tb_432[-c(1), c(1, 4:7)])
+# April 2020 row is removed
+
+tb_43m<-reshape2::melt(tb_43, 
+                        id.vars = c("samplemonth", "study"),
+                        variable.name = "adjustment",
+                        value.name = "prop")
+rm(tb_431, tb_432)
+```
+
+##### 4.3.3 Make plots
+```{r}
+p4.3.3<-tb_43m %>%
+  ggplot(aes(x=samplemonth, y=prop, colour=study)) +
+  geom_point(aes(colour=study)) +
+  geom_line(aes(colour=study, linetype=adjustment))  +
+  xlab("Month of Sample Collection") +
+  ylab("Seroprevalence") +
+  coord_cartesian(xlim = c(as.yearmon("May 2020"), as.yearmon("Jan 2022")),
+                  ylim = c(0, 0.15)) +
+#  ylim(c(as.yearmon("Jan 2022"), as.yearmon("Feb 2023"))) +
+  scale_colour_manual("", values = c("red","blue")) +
+  scale_linetype_manual("", values=c(1,2,3),
+                        labels= c("Unadjusted", "RG adjusted (informed priors)",
+                                  "RG adjusted (nautral priors)")) +
+  theme_bw() 
+
+p4.3.3
 ```
 

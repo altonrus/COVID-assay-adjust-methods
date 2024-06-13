@@ -677,7 +677,7 @@ RFD4682_v2$`N-IgG_INTERP`[RFD4682_v2$`N-IgG_RESULT` < 1.4 &
 RFD4682_v2$`N-IgG_INTERP`[RFD4682_v2$`N-IgG_RESULT` >= 1.4 & 
                           !is.na(RFD4682_v2$`N-IgG_RESULT`)]<-"Positive"
 
-
+table(RFD4682_v2$`N-IgG_INTERP`, useNA = 'ifany')
 summary(RFD4682_v2$COLLECTION_DATE[!is.na(RFD4682_v2$`N-IgG_INTERP`)])
 ```
 
@@ -721,6 +721,7 @@ save(RFD4682_ev2, file = "~/../../jmy/APL/RFD4682_ev2.RData")
 
 ## 3. Clean other two APL sub datasets (Vax, NAAT)
 
+## Unfinished ##
 ```{r}
 # Add encrypted IDe to vax and NAAT data
 RFD4682_v2_vaxe<-merge(RFD4682_v2_vax, select(ULI_crosswalk, ULI_ID, ULI_IDe),

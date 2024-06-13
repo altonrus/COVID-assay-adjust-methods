@@ -189,7 +189,7 @@ p01
 
 ## What's the reason of the gap?
 
-- assay difference (Roche-N vs Abbott-N), different waning-->different scale of measurement: Roche~18 months vs Abbott~6 months
+-   assay difference (Roche-N vs Abbott-N), different waning--\>different scale of measurement: Roche\~18 months vs Abbott\~6 months
 
 ```{r}
 # The gap between adjusted and unadjused - Rogen-Gladen equation is the cause
