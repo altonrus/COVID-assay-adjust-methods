@@ -518,28 +518,6 @@ p09v1 +
             colour="navy", angle=90)
 ```
 
-#### Figure panel
-
-```{r}
-# use cowplot package
-p09all.upper<-cowplot::plot_grid(p09c + ylab("Proportion") +
-                           theme(legend.position='top') +
-                           guides(color = guide_legend(nrow = 2)), 
-                           p09v0 + xlab ("") + ylab(""), nrow=1,
-                           labels = c("A", "B"),  align = "h")
-p09all.upper
-
-p09all.lower<-cowplot::plot_grid(
-                           NULL,  p09v1 + theme(legend.position="none"), nrow=1,
-                           labels = c("", "C"))
-p09all.lower
-
-
-png(file="../4_output/figs/Fig.4 Immunity.png", 
-    width=2400, height=2000, res=300)
-cowplot::plot_grid(p09all.upper, p09all.lower, nrow=2, rel_heights = c(1, 0.8))
-dev.off()
-```
 
 ## 4.2 The vaccination rate among APL
 
@@ -834,7 +812,7 @@ p09v1a<-tb_abbsv1 %>%
 p09v1a
 ```
 
-## 4.4.3 Check the time gap btw 1st dose and 2nd dose. 
+#### 4.4.3 Check the time gap btw 1st dose and 2nd dose. 
 ```{r}
 APL_vax<-RFD4682_v2_vaxe %>%
   select(ULI, ULI_IDe, DOSE_COUNT, IMMUNIZATION_DATE) %>%
@@ -852,4 +830,140 @@ hist(as.numeric(APL_vax$time_gap), breaks=25)
 
 summary(as.numeric(APL_vax$time_gap))
 ```
+##  4.5 Adding the proportion of each stratum
+
+### Make the plot for three strata
+
+#### The unvaccinated stratum
+```{r}
+# add proportion of the stratum into the data table
+tb_abbsv0<-merge(tb_abbsv0, select(tb_abbsv1, samplemonth, n.all),
+      by="samplemonth", all.x=T, all.y=F)
+tb_abbsv0<-tb_abbsv0 %>%
+  mutate(
+    prop.stra = n/n.all
+  )
+p09v0.lab<-c("APL-Abbott (COI=50)", "APL-Abbott (COI=402)",
+             "Proportion of the stratum")
+
+tb_abbsv0_melt<-reshape2::melt(select(tb_abbsv0, -c(2:4,7)), 
+                        id.vars = c("samplemonth"),
+                        variable.name = "COI",
+                        value.name = "prop")
+
+# making the plot
+p09v0<-tb_abbsv0_melt %>%
+  ggplot(aes(x=samplemonth, y=prop)) +
+  geom_point(aes(colour=COI)) +
+  geom_line(aes(linetype=COI, colour=COI))  +
+  theme_bw() + 
+  ylim(c(0,1)) +
+  xlab("Time of Sample Collection") + 
+  ylab("Proportion")+ 
+  scale_colour_manual("", values = c("red", "red", "darkgrey"),
+                      labels = p09v0.lab)+
+  scale_linetype_manual("", values=c(1,3,3), labels = p09v0.lab) +
+  theme(legend.position='top') +
+  guides(color = guide_legend(nrow = 2)) +
+  ggtitle("Stratum: unvaccinated")
+p09v0
+```
+
+#### The 1-dose only stratum
+```{r}
+tb_abbsv1_melt<-reshape2::melt(select(tb_abbsv1, -c(2:4,7)), 
+                        id.vars = c("samplemonth"),
+                        variable.name = "COI",
+                        value.name = "prop")
+
+p09v1<-tb_abbsv1_melt %>%
+  ggplot(aes(x=samplemonth, y=prop)) +
+  geom_point(aes(colour=COI)) +
+  geom_line(aes(linetype=COI, colour=COI))  +
+  theme_bw() + 
+  ylim(c(0,1)) +
+  xlab("Time of Sample Collection") + 
+  ylab("Proportion")+ 
+  scale_colour_manual("", values = c("red", "red", "darkgrey"),
+                      labels = p09v0.lab)+
+  scale_linetype_manual("", values=c(1,3,3), labels = p09v0.lab) +
+  theme(legend.position='none') +
+  guides(color = guide_legend(nrow = 2)) +
+  ggtitle("Stratum: 1 dose only")
+p09v1
+```
+
+#### The 2-dose+ stratum
+```{r}
+tb_abbsv2<-tb_abbsv2[-1,]
+
+# add proportion of the stratum into the data table
+tb_abbsv2<-merge(tb_abbsv2, select(tb_abbsv1, samplemonth, n.all),
+      by="samplemonth", all.x=T, all.y=F)
+tb_abbsv2<-tb_abbsv2 %>%
+  mutate(
+    prop.stra = n/n.all
+  )
+```
+
+```{r}
+# melt the data tab
+tb_abbsv2_melt<-reshape2::melt(select(tb_abbsv2, -c(2:4,7)), 
+                        id.vars = c("samplemonth"),
+                        variable.name = "COI",
+                        value.name = "prop")
+
+p09v2<-tb_abbsv2_melt %>%
+  ggplot(aes(x=samplemonth, y=prop)) +
+  geom_point(aes(colour=COI)) +
+  geom_line(aes(linetype=COI, colour=COI))  +
+  theme_bw() + 
+  ylim(c(0,1)) +
+  xlab("Time of Sample Collection") + 
+  ylab("Proportion")+ 
+  scale_colour_manual("", values = c("red", "red", "darkgrey"),
+                      labels = p09v0.lab)+
+  scale_linetype_manual("", values=c(1,3,3), labels = p09v0.lab) +
+  theme(legend.position='none') +
+  guides(color = guide_legend(nrow = 2)) +
+  ggtitle("Stratum: 2 doses +")
+p09v2
+```
+
+### merge all four into one figue panel
+```{r}
+rm(p09v0a, p09v1a, p09v2a)
+```
+
+#### Figure panel
+```{r}
+# use cowplot package
+p09.upper<-cowplot::plot_grid(p09c + ylab("Proportion") + xlab ("") +
+                           theme(legend.position='top') +
+                           guides(color = guide_legend(nrow = 2)), 
+                           p09v0 + xlab ("") + ylab(""),
+                           labels = c("A", "B"),
+                           nrow=1,  align = "h")
+
+p09.lower<-cowplot::plot_grid(p09v1, p09v2 + ylab(""),
+                              labels = c("C", "D"),
+                              nrow=1,  align = "h")
+p09all<-cowplot::plot_grid(p09.upper, p09.lower,
+                              labels = c("", ""),
+                              nrow=2,  align = "v", rel_heights = c(1,0.8))
+p09all
+
+png(file="../4_output/figs/Fig.4 Immunity.png", 
+    width=2400, height=2000, res=300)
+p09all
+dev.off()
+```
+
+
+
+
+
+
+
+
 

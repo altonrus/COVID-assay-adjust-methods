@@ -1109,6 +1109,12 @@ cowplot::plot_grid(p08.upper, p07 + theme(legend.position = c(0.95, 0.93),
 dev.off()
 ```
 
+#### 3.6 Create fig panel for the paper
+```{r}
+
+```
+
+
 ## Part IV Misc Analysis
 
 #### 4.1. About the age dist in training data and CBS: The difference on age distribution might be a potential problem. Generally speaking, blood donors (CBS, FR-Leon data) is relatively older, while Covid-19 convalescent patients are younger.
