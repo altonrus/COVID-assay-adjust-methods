@@ -203,14 +203,18 @@ APLs$pos_abbott_s2[APLs$pos_abbott_s2=="Positive"]<-1
 APLs$pos_abbott_s2[APLs$pos_abbott_s2=="Negative"]<-0
 APLs$pos_abbott_s2<-as.numeric(APLs$pos_abbott_s2)
 
+APLs$pos_abbott_s_na<-is.na(APLs$pos_abbott_s)
 tb_abbs<-APLs %>%
   group_by(samplemonth) %>%
   summarise(n = n() , 
+            n_na_s = sum(pos_abbott_s_na, na.rm = T),
             pos_abbott_s= sum(pos_abbott_s, na.rm = T), 
             pos_abbott_s2= sum(pos_abbott_s2, na.rm = T)
             )
-tb_abbs$prop.abbs1<-tb_abbs$pos_abbott_s/tb_abbs$n
-tb_abbs$prop.abbs2<-tb_abbs$pos_abbott_s2/tb_abbs$n
+tb_abbs$prop.abbs1<-tb_abbs$pos_abbott_s/(tb_abbs$n-tb_abbs$n_na_s)
+tb_abbs$prop.abbs2<-tb_abbs$pos_abbott_s2/(tb_abbs$n-tb_abbs$n_na_s)
+tb_abbs$prop.abbs1[1:9]<-rep("NA",9)
+tb_abbs$prop.abbs2[1:9]<-rep("NA",9)
 
 # clean NAs
 tb_abbs<-tb_abbs[!is.na(tb_abbs$samplemonth),]
@@ -527,7 +531,7 @@ The APL data Carmen shared with us has vaccination info, the 2024 Jan ver of it 
 
 ```{r}
 # create vax% cat var
-APLs$vax_cat<-rep(NA, 214780)
+APLs$vax_cat<-rep(NA, length(APLs$clean_IDe))
 APLs$vax_cat[APLs$vax %in% c("1 Dose","1-2 Doses","2 Doses","3 Doses",
                              "4 Doses")]<-1
 APLs$vax_cat[APLs$vax %in% c("Not Immunized", "Pre-Immunization")]<-0
@@ -537,7 +541,6 @@ table(APLs$vax, APLs$vax_cat, useNA = 'ifany')
 ```{r}
 # create merged data
 tb_vax<-APLs %>%
-  .[.$abb_s_AU==1,] %>%
   group_by(samplemonth) %>%
   summarise(n = n() , 
             n_vax= sum(vax_cat, na.rm = T)
@@ -559,7 +562,7 @@ p10<-tb_vax %>%
 p10
 ```
 
-**Alton's comments:** "It might be worth comparing to reported vax rate for Alberta similar to what Sheila and Steve did in that figure." As they used (S+ N-)% to estimate the vax%, it will inevitably results in underestimation, as those who are vaccinated and infected was not counted.
+**Alton's comments:** "It might be worth comparing to reported vax rate for Alberta similar to what Sheila and Steve did in that figure." As they used (S+ N-)% to estimate the vax%, it will inevitably results in underestimation, as those who are vaccinated and infected was not counted. An alternative solution is to estimate vax% using (S+ N-) by (N-), assuming vaccination is not related to anti N positivity (which is probably not true and we can cross-verify using our own data).
 
 #### 4.2.2 Vax by anti-S and anti-N
 
@@ -567,22 +570,30 @@ p10
 # create an addition indicator for S+ and N-
 table(APLs$pos_abbott, APLs$pos_abbott_s, useNA = 'ifany')
 
-APLs$vax_est<-rep(0, 214780)
+APLs$vax_est<-rep(0, length(APLs$clean_IDe))
 APLs$vax_est[APLs$pos_abbott==0 & APLs$pos_abbott_s==1]<-1
 APLs$vax_est[is.na(APLs$pos_abbott) | is.na(APLs$pos_abbott_s)]<-NA
 table(APLs$vax_est)
 ```
 
 ```{r}
+# Modify APLs data, add na indicator, N=69108
+table(APLs$pos_abbott, useNA = "ifany")
+APLs$pos_abbott_na <- is.na(APLs$pos_abbott)
+table(APLs$pos_abbott, APLs$pos_abbott_na, useNA = 'ifany')
+
 tb_vax_est<-APLs %>%
-#  .[!is.na(.$pos_abbott_s) & !is.na(.$pos_abbott),] %>%
   group_by(samplemonth) %>%
   summarise(n = n() , 
+            n_pos = sum(pos_abbott, na.rm = T),
+            n_na = sum(pos_abbott_na, na.rm=T),
             n_vax= sum(vax_est, na.rm = T)
             )
-tb_vax_est$prop.vax<-tb_vax_est$n_vax/tb_vax_est$n
+tb_vax_est$n_neg = tb_vax_est$n - tb_vax_est$n_pos - tb_vax_est$n_na
+tb_vax_est$prop.vax<-tb_vax_est$n_vax/tb_vax_est$n_neg
 
 # clean NAs
+tb_vax_est$prop.vax[1:17]<-rep(NA, 17)
 tb_vax_est<-tb_vax_est[!is.na(tb_vax_est$samplemonth),]
 
 # make the plot
@@ -622,6 +633,7 @@ tb_vax_AB$data<-rep("AB_general", length(tb_vax_AB$weekend))
 
 d01<-tb_vax_AB
 colnames(d01)<-c("samplemonth", "prop.vax", "data")
+d01$prop.vax = d01$prop.vax/100
 ```
 
 ##### creating a merged data
@@ -629,13 +641,13 @@ colnames(d01)<-c("samplemonth", "prop.vax", "data")
 ```{r}
 # Estimated vaccination rate: by anti-S + and anti-N neg
 View(tb_vax_est)
-d02<-select(tb_vax_est, c(1,4))
+d02<-select(tb_vax_est, samplemonth, prop.vax)
 d02$data<-rep("S_pos_N_Neg", length(d02$samplemonth))
 
 # Estimated vaccination rate: by anti-S only
 View(tb_abbs)
-d03<-select(tb_abbs, samplemonth, prop.abbs1, study)
-colnames(d03)<-c("samplemonth", "prop.vax", "data")
+d03<-select(tb_abbs, samplemonth, prop.abbs1)
+colnames(d03)<-c("samplemonth", "prop.vax")
 d03$data<-rep("S_pos", length(d03$samplemonth))
 
 # Reported vax rate in APL
@@ -646,8 +658,7 @@ d04$data<-rep("APL_vax", length(d04$samplemonth))
 # merge all
 dta.vax<-rbind.data.frame(d01, d02, d03, d04)
 rm(d01, d02, d03, d04)
-
-dta.vax$prop.vax[dta.vax$data=="AB_general"]<-dta.vax$prop.vax[dta.vax$data=="AB_general"]/100
+dta.vax$prop.vax<-as.numeric(dta.vax$prop.vax)
 ```
 
 ##### Making the plot
@@ -658,9 +669,85 @@ p12<-dta.vax %>%
   geom_point(aes(colour=data)) +
   geom_line(aes(colour=data))  +
   theme_bw() + 
-  ylim(c(0,1)) +
-  ylab("Vaccinated%")
+  ylim(0,1)+
+  ylab("Vaccinated%") +
+  scale_colour_manual("", values = c("orange", "red", "red", "purple"),
+                      labels = c("AB General Pop.", "APL Vax%", 
+                                 "Anti-S(+)", "Anti-S(+) N(-)")
+                      )
+#  scale_linetype_manual("", values=c(3,3,1,1), labels = p09.lab) 
 p12
+```
+
+
+#### 4.2.4 Apply (S+ N-)/N- for vax% estimation
+
+First we calculate (S+ N-)/N- among CBS samples
+```{r}
+table(CBSs_AB$pos_roche, CBSs_AB$pos_roche_s, useNA = 'ifany')
+# good data quality, only two NAs in roche_n and roche_s
+
+# remove two NAs
+CBSs_AB<-CBSs_AB[!(is.na(CBSs_AB$pos_roche) | is.na(CBSs_AB$pos_roche_s)), ]
+
+# add vax_est
+CBSs_AB$vax_est<-rep(0, length(CBSs_AB$pid))
+CBSs_AB$vax_est[CBSs_AB$pos_roche==0 & CBSs_AB$pos_roche_s==1]<-1
+table(CBSs_AB$vax_est)
+```
+
+Then we calculate the vax% using S(+) and (S+ & N-)/(N-)
+```{r}
+tbCBS_vax_est<-CBSs_AB %>%
+  group_by(samplemonth) %>%
+  summarise(n = n() , 
+            n_pos = sum(pos_roche, na.rm = T),
+            s_pos = sum(pos_roche_s, na.rm = T),    
+            n_vax= sum(vax_est, na.rm = T)
+            )
+tbCBS_vax_est$n_neg = tbCBS_vax_est$n - tbCBS_vax_est$n_pos
+tbCBS_vax_est$prop.vax<-tbCBS_vax_est$n_vax/tbCBS_vax_est$n_neg
+
+## add CBS data to merged data
+d05<-select(tbCBS_vax_est, c(1,7))
+colnames(d05)<-c("samplemonth", "prop.vax")
+d05$data<-rep("CBS: S_pos_N_Neg", length(d05$samplemonth))
+
+dta.vax<-rbind.data.frame(dta.vax, d05)
+```
+
+#### Now redo the plot
+```{r}
+# Add study and adjustment
+dta.vax$study[dta.vax$data %in% c("AB_general")]<-"AB_general"
+dta.vax$study[dta.vax$data %in% c("CBS: S_pos_N_Neg")]<-"CBS"
+dta.vax$study[dta.vax$data %in% c("APL_vax", "S_pos", "S_pos_N_Neg")]<-"APL"
+
+dta.vax$adj[dta.vax$data %in% c("AB_general", "APL_vax")]<-"raw"
+dta.vax$adj[dta.vax$data %in% c("CBS: S_pos_N_Neg", "S_pos_N_Neg")]<-"S_pos_N_Neg"
+dta.vax$adj[dta.vax$data %in% c("S_pos")]<-"S_pos"
+
+p12.lab <- c("AB General Pop.", "APL Vax%", 
+             "APL: Anti-S(+)", "APL: Anti-S(+) N(-)", "CBS: Anti-S(+) N(-)")
+p12<-dta.vax %>%
+  ggplot(aes(x=samplemonth, y=prop.vax, colour=interaction(study, adj),
+                                        linetype=interaction(study, adj))) +
+  geom_point() +
+  geom_line()  +
+  theme_bw() + 
+  ylim(0,1)+
+  ylab("Vaccinated%") +
+  scale_colour_manual("", values = c("orange", "red", "red","purple", "blue"),
+                      labels = p12.lab)+
+  scale_linetype_manual("", values=c(1,1,3,3,3), labels = p12.lab) 
+p12
+```
+#### Print p12
+```{r}
+png(file="../4_output/figs/Fig.S2 Vax.png", 
+    width=2400, height=1440, res=300)
+p12
+dev.off()
 ```
 
 ## 4.3 Iris's Imputation on Vax history
