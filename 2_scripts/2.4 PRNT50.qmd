@@ -287,8 +287,8 @@ tb_APLCBS2$COI_ty[tb_APLCBS2$COI %in% c("402.36", "178.81")]<-"Immunity"
 
 ```{r}
 # ggplot
-p09.lab<-c("APL-Abbott (COI=402)", "CBS-Roche (COI=179)", 
-           "APL-Abbott (COI=50)", "CBS-Roche (COI=0.8)")
+p09.lab<-c("APL (PRNT-50 cutoff)", "CBS (PRNT-50 cutoff)", 
+           "APL (manufacturer cutoff)", "CBS (manufacturer cutoff)")
 p09c<-tb_APLCBS2 %>%
   ggplot(aes(x=samplemonth, y=prop, colour=interaction(study, COI_ty),
                                     linetype=interaction(study, COI_ty))) +
@@ -299,7 +299,8 @@ p09c<-tb_APLCBS2 %>%
   ylab("Proportion")+ 
   scale_colour_manual("", values = c("red", "blue", "red", "blue"),
                       labels = p09.lab)+
-  scale_linetype_manual("", values=c(3,3,1,1), labels = p09.lab) 
+  scale_linetype_manual("", values=c(3,3,1,1), labels = p09.lab)+
+  ggtitle("Unstratified")
 #  theme(legend.position="top")+
 #  guides(color = guide_legend(nrow = 2))
 
@@ -930,7 +931,7 @@ tb_abbsv0<-tb_abbsv0 %>%
   mutate(
     prop.stra = n/n.all
   )
-p09v0.lab<-c("APL-Abbott (COI=50)", "APL-Abbott (COI=402)",
+p09v0.lab<-c("APL (manufacturer cutoff)", "APL (PRNT-50 cutoff)",
              "Proportion of the stratum")
 
 tb_abbsv0_melt<-reshape2::melt(select(tb_abbsv0, -c(2:4,7)), 
@@ -1026,6 +1027,7 @@ rm(p09v0a, p09v1a, p09v2a)
 ```{r}
 # use cowplot package
 p09.upper<-cowplot::plot_grid(p09c + ylab("Proportion") + xlab ("") +
+                           coord_cartesian(xlim=as.yearmon(c("Jan 2021", "Oct 2022"))) +
                            theme(legend.position='top') +
                            guides(color = guide_legend(nrow = 2)), 
                            p09v0 + xlab ("") + ylab(""),
@@ -1045,10 +1047,122 @@ png(file="../4_output/figs/Fig.4 Immunity.png",
 p09all
 dev.off()
 ```
+## 5. Additional analysis for manuscript
+```{r}
+# median age in CBS Alberta and APL
+summary(CBSs_AB$age) 
+summary(APLs$age) # age=0?
 
+APLs %>%
+  .[.$age %in% c(0:17),]
 
+# age categories
+CBSs_AB$age_cat[CBSs_AB$age %in% c(16:17)]<-"<18"
+CBSs_AB$age_cat[CBSs_AB$age %in% c(18:35)]<-"18-35"
+CBSs_AB$age_cat[CBSs_AB$age %in% c(36:64)]<-"36-64"
+CBSs_AB$age_cat[CBSs_AB$age %in% c(65:199)]<-"65+"
+table(CBSs_AB$age_cat, useNA = "ifany")
+prop.table(table(CBSs_AB$age_cat, useNA = "ifany"))
 
+APLs$age_cat[APLs$age %in% c(0:17)]<-"<18"
+APLs$age_cat[APLs$age %in% c(18:35)]<-"18-35"
+APLs$age_cat[APLs$age %in% c(36:64)]<-"36-64"
+APLs$age_cat[APLs$age %in% c(65:199)]<-"65+"
+table(APLs$age_cat)
+prop.table(table(APLs$age_cat))
 
+# Sex
+table(CBSs_AB$sex)
+prop.table(table(CBSs_AB$sex))
+
+table(APLs$gender)
+prop.table(table(APLs$gender))
+```
+
+Among samples from our auxiliary datasets tested with both Abbott and Roche Anti-N assays, the COI was lower with Abbott than with Roche in X% of samples
+```{r}
+# This involves directly comparison btw Roche anti-N and Abbott-anti-N
+
+# How many samples each?
+table(dta_all$study)
+
+# Non missing in Abbott & Roche anti-N
+table(dta_all[(!is.na(dta_all$roche_n) & !is.na(dta_all$abbott_n)),]$study)
+dta_nmiss<-dta_all[(!is.na(dta_all$roche_n) & !is.na(dta_all$abbott_n)),]
+
+table(dta_nmiss$abbott_n<dta_nmiss$roche_n)
+778/(778+43)
+```
+
+```{r}
+#Numbers at 2022 July
+tb_melt_2 %>%
+  .[.$samplemonth == as.yearmon("July 2022"),]
+```
+
+#### PCR-verified test positivity:
+```{r}
+# How many test results are previously PCR-verified?
+
+# CBS data (AB subset) - ver Dec 2023, this should be the same ver of CBS data we received by late Nov of 2023, the same ver of data we used for the project. No PCR test results were found.
+
+# How many records in AB?
+CBSs %>%
+  filter(province=="AB") %>%  # N=124,008
+  select(pid, sampledate) %>%
+  unique()                    # No duplicated record, good
+
+# APL data: check the APL data ev2, this one is uploaded to the jmy folder on the server
+load("/home/jchen/../../jmy/APL/RFD4682_ev2.RData")
+
+# N=214776, de-duplicated, good.
+
+# Is sero-id unique (this is the sample ID)
+length(unique(RFD4682_ev2$SERO_ID)) # N=214,776, good
+length(unique(RFD4682_ev2$SID)) # N=213,139, duplicates, use SERO_ID
+
+# how many has valid PCR test results?
+t1<-table(RFD4682_ev2$NAAT_STATUS, useNA = 'ifany')
+t1
+prop.table(t1)
+```
+
+```{r}
+# Unstratified test positivity 
+# Abbott Anti-N
+RFD4682_ev2 %>%
+  filter(NAAT_STATUS == "Positive") %>%
+  count(`N-IgG_INTERP`)
+
+# Abbott Anti-S-RBD
+RFD4682_ev2 %>%
+  filter(NAAT_STATUS == "Positive") %>%
+  count(`RBD-IgGII_INTERP`)
+```
+```{r}
+# Stratified analysis
+RFD4682_ev2$DAYS_SINCE_NAAT<-as.numeric(RFD4682_ev2$DAYS_SINCE_NAAT)
+hist(RFD4682_ev2$DAYS_SINCE_NAAT)
+
+RFD4682_ev2$NAAT_month_cat<-rep(NA, length(RFD4682_ev2$SERO_ID))
+RFD4682_ev2[!is.na(RFD4682_ev2$DAYS_SINCE_NAAT) &
+            0<=RFD4682_ev2$DAYS_SINCE_NAAT &
+            RFD4682_ev2$DAYS_SINCE_NAAT<90,]$NAAT_month_cat<-"<3 months"
+RFD4682_ev2[!is.na(RFD4682_ev2$DAYS_SINCE_NAAT) &
+            90<=RFD4682_ev2$DAYS_SINCE_NAAT &
+            RFD4682_ev2$DAYS_SINCE_NAAT<180,]$NAAT_month_cat<-"3-6 months"
+RFD4682_ev2[!is.na(RFD4682_ev2$DAYS_SINCE_NAAT) &
+            180<=RFD4682_ev2$DAYS_SINCE_NAAT &
+            RFD4682_ev2$DAYS_SINCE_NAAT<360,]$NAAT_month_cat<-"6-12 months"
+RFD4682_ev2[!is.na(RFD4682_ev2$DAYS_SINCE_NAAT) &
+            360<=RFD4682_ev2$DAYS_SINCE_NAAT,]$NAAT_month_cat<-">12 months"
+table(RFD4682_ev2$NAAT_month_cat, useNA = 'ifany')
+  
+RFD4682_ev2 %>%
+  filter(NAAT_STATUS == "Positive") %>%
+  group_by(NAAT_month_cat) %>%
+  count(`N-IgG_INTERP`)
+```
 
 
 
