@@ -849,13 +849,13 @@ p03.3<-tb_alberta %>%
   geom_line()  +
   theme_bw() + 
   xlab("Time of Sample Collection") + 
-  ylab("Sero-prevalence")+ 
+  ylab("Seroprevalence")+ 
   scale_colour_manual("",   values = c("red", "red", "blue", "blue"))+
   scale_linetype_manual("", values=c(1,3,1,3))
 
 # use this chunk to skip the paste()
-p03.lab<-c("APL (raw)", "CBS (raw)", 
-           "APL (transformed)", "CBS (transformed)")
+p03.lab<-c("APL Abbott (actual)", "CBS Roche (actual)", 
+           "APL Roche (transformed)", "CBS Abbott (transformed)")
 p03.3<-tb_alberta %>%
   ggplot(aes(x=samplemonth, y=prop, colour=interaction(data, raw),
                                     linetype=interaction(data, raw))) +
@@ -863,7 +863,7 @@ p03.3<-tb_alberta %>%
   geom_line()  +
   theme_bw() +
   xlab("Time of Sample Collection") + 
-  ylab("Sero-prevalence")+ 
+  ylab("Seroprevalence")+ 
   scale_colour_manual("", values = c("red", "blue", "red", "blue"),
                       labels = p03.lab)+
   scale_linetype_manual("", values=c(1,1,3,3), labels = p03.lab) +
@@ -1013,8 +1013,8 @@ tb_ab_rg$rg_upper[tb_ab_rg$rg=="prop"]<-NA
 
 ```{r}
 # rebuild the figure
-p03.5lab<-c("APL (raw)", "CBS (raw)", 
-            "APL (RG-Bayesian)", "CBS (RG-Bayesian)")
+p03.5lab<-c("APL Abbott (actual)", "CBS Roche (actual)", 
+            "APL Abbott (RG-Bayesian)", "CBS Roche (RG-Bayesian)")
 
 p03.5<-tb_ab_rg %>%
   ggplot(aes(x=samplemonth, y=prop, colour=interaction(data,rg),
@@ -1024,7 +1024,7 @@ p03.5<-tb_ab_rg %>%
   geom_errorbar(aes(ymin=rg_lower, ymax=rg_upper), width=0.05)+
   theme_bw() + 
   xlab("Time of Sample Collection") + 
-  ylab("Sero-prevalence") +
+  ylab("Seroprevalence") +
   scale_colour_manual("", values = c("red", "blue", "red", "blue"),
                       labels = p03.5lab) +
   scale_linetype_manual("", values=c(1,1,3,3), labels = p03.5lab) +
@@ -1109,9 +1109,22 @@ cowplot::plot_grid(p08.upper, p07 + theme(legend.position = c(0.95, 0.93),
 dev.off()
 ```
 
-#### 3.6 Create fig panel for the paper
+#### 3.6 Create fig panel for the manuscript
 ```{r}
+# use cowplot package
+p08.upper<-cowplot::plot_grid(p03.5  + ylab("Seroprevalence") +
+                              ylim(0,0.8), 
+                              p03.3  + ylab("") +
+                              ylim(0,0.8)+
+                              scale_y_continuous(breaks = c(0,0.2,0.4,0.6,0.8)),
+                              nrow=1, align = "h",
+                              labels = c("A", "B"))
+p08.upper
 
+png(file="../4_output/figs/Fig.1m Seroprevalence.png", 
+    width=2400, height=1000, res=300)
+p08.upper
+dev.off()
 ```
 
 

@@ -1047,7 +1047,9 @@ png(file="../4_output/figs/Fig.4 Immunity.png",
 p09all
 dev.off()
 ```
-## 5. Additional analysis for manuscript
+## 5. Additional analysis for manuscript 
+
+####  5.1 Some desc analysis
 ```{r}
 # median age in CBS Alberta and APL
 summary(CBSs_AB$age) 
@@ -1100,7 +1102,8 @@ tb_melt_2 %>%
   .[.$samplemonth == as.yearmon("July 2022"),]
 ```
 
-#### PCR-verified test positivity:
+#### 5.2 PCR-verified test positivity:
+We did this analysis as suggested by the reviewer-1
 ```{r}
 # How many test results are previously PCR-verified?
 
