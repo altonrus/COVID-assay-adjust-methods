@@ -242,7 +242,8 @@ tb_abbs$prop.abbs2[1:9]<-rep("NA",9)
 # clean NAs
 tb_abbs<-tb_abbs[!is.na(tb_abbs$samplemonth),]
 
-tb_abbs_melt<-reshape2::melt(select(tb_abbs, -c(2:4)), 
+tb_abbs_melt<-reshape2::melt(select(tb_abbs, 
+                                    samplemonth, prop.abbs1, prop.abbs2), 
                         id.vars = c("samplemonth"),
                         variable.name = "COI",
                         value.name = "prop")
@@ -296,7 +297,7 @@ tb_abbs_melt$study<-rep("APL", length(tb_abbs_melt$samplemonth))
 tb_ros_melt$study<-rep("CBS", length(tb_ros_melt$samplemonth))
 
 tb_APLCBS2<-rbind.data.frame(tb_abbs_melt, tb_ros_melt)
-rm(tb_abbs, tb_abbs_melt, tb_ros, tb_ros_melt)
+#rm(tb_abbs, tb_abbs_melt, tb_ros, tb_ros_melt)
 
 tb_APLCBS2$COI<-as.character(tb_APLCBS2$COI)
 tb_APLCBS2$COI[tb_APLCBS2$COI=="prop.abbs1"]<-"50"
@@ -306,6 +307,9 @@ tb_APLCBS2$COI[tb_APLCBS2$COI=="prop.ros2"]<-"178.81"
 
 tb_APLCBS2$COI_ty[tb_APLCBS2$COI %in% c("50", "0.8")]<-"Positivity"
 tb_APLCBS2$COI_ty[tb_APLCBS2$COI %in% c("402.36", "178.81")]<-"Immunity"
+
+tb_APLCBS2<-tb_APLCBS2 %>%
+  mutate(prop=as.numeric(prop))
 ```
 
 ```{r}
@@ -313,10 +317,10 @@ tb_APLCBS2$COI_ty[tb_APLCBS2$COI %in% c("402.36", "178.81")]<-"Immunity"
 p09.lab<-c("APL (PRNT-50 cutoff)", "CBS (PRNT-50 cutoff)", 
            "APL (manufacturer cutoff)", "CBS (manufacturer cutoff)")
 p09c<-tb_APLCBS2 %>%
-  ggplot(aes(x=samplemonth, y=prop, colour=interaction(study, COI_ty),
-                                    linetype=interaction(study, COI_ty))) +
+  filter(!is.na(COI_ty)) %>%
+  ggplot(aes(x=samplemonth, y=prop, colour=interaction(study, COI_ty))) +
   geom_point() +
-  geom_line()  +
+  geom_line(aes(linetype = interaction(study, COI_ty)))  +
   theme_bw() +
   xlab("Time of Sample Collection") + 
   ylab("Proportion")+ 
@@ -853,6 +857,7 @@ p13<-dta.vax.2 %>%
   theme(legend.position = c(0.8,0.2))
 p13
 ```
+
 ##### Print p12 and p13 together
 ```{r}
 p1213<-plot_grid(p12 + xlab ("Time of Sample Collection") +
@@ -870,7 +875,12 @@ png(file="../4_output/figs/Fig.S2 Vax.png",
 p1213
 dev.off()
 ```
-
+##### Print p12 and p13 in pdf formats, as requested by AJE
+```{r}
+ggsave(file="../4_output/figs/Fig.S2 Vax.pdf", 
+       width=2400, height=1200, dpi=300, units = "px", 
+       plot = p1213)
+```
 
 
 ## 4.3 Iris's Imputation on Vax history
@@ -1164,10 +1174,11 @@ p09all<-cowplot::plot_grid(p09.upper, p09.lower,
                               nrow=2,  align = "v", rel_heights = c(1,0.8))
 p09all
 
-png(file="../4_output/figs/Fig.4 Immunity.png", 
-    width=2400, height=2000, res=300)
-p09all
-dev.off()
+
+ggsave(file="../4_output/figs/Fig.3 Immunity.pdf",
+       plot = p09all,
+        width=2400, height=2000, 
+        dpi=300, units ="px")
 ```
 ## 5. Additional analysis for manuscript 
 
