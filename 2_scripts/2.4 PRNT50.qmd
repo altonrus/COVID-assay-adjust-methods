@@ -1177,7 +1177,7 @@ p09all
 
 ggsave(file="../4_output/figs/Fig.3 Immunity.pdf",
        plot = p09all,
-        width=2400, height=2000, 
+        width=2550, height=2000, 
         dpi=300, units ="px")
 ```
 ## 5. Additional analysis for manuscript 
