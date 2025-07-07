@@ -383,6 +383,7 @@ table(RFD4682_NAAT$Vacc_status, useNA = 'ifany')
 ```
 
 Estimation on number of individuals, using cleaned version of IDe
+
 ```{r}
 # Total num of individual in the data:
 table(is.na(unique(RFD4682_e$clean_IDe)), useNA = 'ifany')    # N=188,722, plus 1 NA
@@ -404,6 +405,7 @@ table(is.na(RFD4682_e$`N-IgG_RESULT`)==F,
 ```
 
 Some additional cleaning/editing, making anti-S quantitative
+
 ```{r}
 # Missing values
 summary(is.na(RFD4682_e$`RBD-IgGII_RESULT`)==F) 
@@ -429,7 +431,9 @@ table(index) # N=104946
 #### 1.4 Other data cleaning
 
 ##### Yuan found this: anti-N is only available for the Omicron stage
+
 **Notes:** This is an error in two ver of APL. The anti-N assay results are available and misplaced in the anti-S-RBD column.
+
 ```{r}
 # The APL Data:
 RFD4682_e$COLLECTION_DATE %>%
@@ -523,6 +527,7 @@ save(RFD4682_e1, file = "../1_data/private/RFD4682e1.RData") # ver for matt only
 ## 2. APL v2 (Jan 2024) - Data Cleaning
 
 #### ADD order ID and other ids -- doesn't work
+
 ```{r}
 RFD4682_v2$order_ID<-RFD4682_e$order_ID
 
@@ -530,8 +535,8 @@ cbind.data.frame(RFD4682_e$order_ID, RFD4682_e$SERO_ID,
                  RFD4682_v2$order_ID, RFD4682_v2$SERO_ID)
 ```
 
-
 #### 2.1 De-duplicate
+
 ```{r}
 # Does duplicated records exist?
 table(duplicated(RFD4682_v2))  # no-all records are unique
@@ -553,7 +558,9 @@ RFD4682_v2<-RFD4682_v2 %>%
 RFD4682_v2<-rbind.data.frame(RFD4682_v2, RFD4682_v2dup2[c(2,4,6,8,9:16),])
 rm(RFD4682_v2dup, RFD4682_v2dup2)
 ```
+
 ##### De-duplicate SERO_ID for APL v1
+
 ```{r}
 # use the saved duplicated SERO_ID variables to de_duplicate:
 RFD4682_edup<-RFD4682_e %>%
@@ -576,6 +583,7 @@ rm(RFD4682_edup, RFD4682_edup2)
 ```
 
 #### 2.2 Add ULI_IDe from v1
+
 ```{r}
 library(duawranglr)    # use this to encrypt the ids
 
@@ -593,45 +601,6 @@ RFD4682_v2<-merge(RFD4682_v2, select(RFD4682_e, SERO_ID, order_ID, PERSON_IDe, U
                          clean_IDe, QUINTMAT, QUINTSOC), 
       by ="SERO_ID", all = T
       )
-# ULI - ULI_IDe crosswalk
-ULI_crosswalk<-select(RFD4682_v2, ULI_ID, ULI_IDe)
-ULI_crosswalk<-distinct(ULI_crosswalk)
-
-table(is.na(ULI_crosswalk$ULI_IDe))
-ULI_crosswalk %>%
-  .[is.na(.$ULI_IDe),]
-
-# APL ver2 seems have solved missing value issue in the ULI ID, needs to add those
-table(is.na(RFD4682_v2$ULI_ID), is.na(RFD4682_v2$ULI_IDe))
-
-table(is.na(RFD4682_v2$PERSON_ID), is.na(RFD4682_v2$PERSON_IDe))
-
-# encrypt new ULI_ID
-set.seed(240611)
-ULI_crosswalk_e <- deid_dua(ULI_crosswalk, 
-                      id_col = 'ULI_ID',
-                      new_id_name = 'ULI_IDe2',
-                      write_crosswalk = F, id_length = 15)
-
-ULI_crosswalk$ULI_IDe2<-ULI_crosswalk_e$ULI_IDe2
-
-# clean the ULI_ID crosswalk file
-table(is.na(ULI_crosswalk$ULI_ID))
-ULI_crosswalk<-ULI_crosswalk[!is.na(ULI_crosswalk$ULI_ID),]
-ULI_crosswalk<-ULI_crosswalk[-64591,]
-ULI_crosswalk$ULI_IDe[is.na(ULI_crosswalk$ULI_IDe)]<-ULI_crosswalk$ULI_IDe2[is.na(ULI_crosswalk$ULI_IDe)]
-
-# apply the cross-walk to the v2 data
-df.temp1<-RFD4682_v2[!is.na(RFD4682_v2$ULI_ID) & is.na(RFD4682_v2$clean_IDe),]
-df.temp2<-RFD4682_v2[!(!is.na(RFD4682_v2$ULI_ID) & is.na(RFD4682_v2$clean_IDe)),]
-
-df.temp1<-merge(select(df.temp1, -c("ULI_IDe")), 
-             ULI_crosswalk[,1:2],
-      by="ULI_ID", all.x = T, all.y = F)
-df.temp1$clean_IDe<-df.temp1$ULI_IDe
-
-RFD4682_v2<-bind_rows(df.temp1, df.temp2)
-rm(df.temp1, df.temp2, ULI_crosswalk_e)
 ```
 
 ```{r}
@@ -639,9 +608,11 @@ rm(df.temp1, df.temp2, ULI_crosswalk_e)
 RFD4682_v2 %>%
   .[is.na(.$clean_IDe),]
 ```
+
 #### 2.3 Clean anti-N and anti-S
 
 ##### 2.3.1 Anti-N cleaning (remove index)
+
 ```{r}
 # Create an indicator for misplaced anti-N
 RFD4682_v2$abb_s_index<-grepl("index", RFD4682_v2$`RBD-IgGII_RESULT`, ignore.case = T)
@@ -682,6 +653,7 @@ summary(RFD4682_v2$COLLECTION_DATE[!is.na(RFD4682_v2$`N-IgG_INTERP`)])
 ```
 
 ##### 2.3.2 Anti-S cleaning (remove AU/ml)
+
 ```{r}
 RFD4682_v2$`RBD-IgGII_RESULT`<-gsub('[a-z]', '', RFD4682_v2$`RBD-IgGII_RESULT`)
 RFD4682_v2$`RBD-IgGII_RESULT`<-gsub('[A-Z]', '', RFD4682_v2$`RBD-IgGII_RESULT`)
@@ -705,13 +677,15 @@ RFD4682_v2$`RBD-IgGII_INTERP`[is.na(RFD4682_v2$`RBD-IgGII_RESULT`)]<-NA
 table(RFD4682_v2$`RBD-IgGII_INTERP`, useNA = 'ifany')
 
 ```
+
 #### 2.4 Remove unencryoted individual inditifier
+
 ```{r}
 RFD4682_ev2<-select(RFD4682_v2, -c(ULI_ID, PERSON_ID, misplace))
 ```
 
-
 #### 2.5 Save the encrypted ver of APL data
+
 ```{r}
 save(RFD4682_v2, file = "../1_data/private/RFD4682_v2.RData")
 save(RFD4682_ev2, file = "../1_data/private/RFD4682_ev2.RData")
@@ -719,18 +693,4 @@ save(RFD4682_ev2, file = "../1_data/private/RFD4682_ev2.RData")
 save(RFD4682_ev2, file = "~/../../jmy/APL/RFD4682_ev2.RData")
 ```
 
-## 3. Clean other two APL sub datasets (Vax, NAAT)
 
-## Unfinished ##
-```{r}
-# Add encrypted IDe to vax and NAAT data
-RFD4682_v2_vaxe<-merge(RFD4682_v2_vax, select(ULI_crosswalk, ULI_ID, ULI_IDe),
-      by.x="ULI", by.y="ULI_ID", all.x = T, all.y = F)
-# any missing?
-table(is.na(RFD4682_v2_vaxe$ULI_IDe))
-
-# also encrypt the ULI_ID in the RFD4682_vax
-
-list_temp<-RFD4682_v2_vaxe %>%
-  .[is.na(.$ULI_IDe),]
-```
