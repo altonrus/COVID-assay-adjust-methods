@@ -876,14 +876,22 @@ p03.3
 The gap between CBS and APL seropositivity estimates for October 2023 was X% using raw seropositivity, Y% after transforming CBS to Abbott, and Z% after transforming APL to Roche.
 
 ```{r}
+# What is the numbers in 2022 Oct?
+tb_alberta %>%
+  filter(samplemonth == as.yearmon("2022-10-01"))
+
 # How gaps were calculated: 
 # X: Oct 2023, btw raw CBS & APL, Y: APL vs transformed CBS, Z: CBS vs transformed APL
 tb_alberta %>%
   select(data, samplemonth, prop, raw) %>%
-  .[.$samplemonth == as.yearmon("Oct 2022"),] %>%
-  mutate(X = .$prop[4] - .$prop[1]) %>%
-  mutate(Y = .$prop[3] - .$prop[1]) %>%
-  mutate(Z = .$prop[4] - .$prop[2])
+  filter(samplemonth == as.yearmon("2022-10-01")) %>%
+  summarise(
+    A = prop[1], B = prop[4],
+    X = .$prop[4] - .$prop[1],
+    Y = .$prop[3] - .$prop[1],
+    Z = .$prop[4] - .$prop[2]
+  )
+
 ```
 
 #### 3.4 Plot the correlation btw Roche-N and Abbott-N:
@@ -1110,6 +1118,7 @@ dev.off()
 ```
 
 #### 3.6 Create fig panel for the manuscript
+
 ```{r}
 # use cowplot package
 p08.upper<-cowplot::plot_grid(p03.5  + ylab("Seroprevalence") +
@@ -1126,7 +1135,6 @@ png(file="../4_output/figs/Fig.1m Seroprevalence.png",
 p08.upper
 dev.off()
 ```
-
 
 ## Part IV Misc Analysis
 
@@ -1384,6 +1392,7 @@ dev.off()
 #### 4.3 RG Adjusted Sero-prevalence using Bayesian model's priors
 
 ##### 4.3.1 Create monthly anti-N positivity data for CBS
+
 ```{r}
 # CBSs AB subset, N=124008
 CBSs_AB<-CBSs[CBSs$province == "AB",]
@@ -1403,6 +1412,7 @@ tb_431$study <- rep("CBS", length(tb_431$samplemonth))
 ```
 
 ##### 4.3.2 Create monthly anti-N positivity data for APL
+
 ```{r}
 # APL data, N=214776
 
@@ -1435,6 +1445,7 @@ rm(tb_431, tb_432)
 ```
 
 ##### 4.3.3 Make plots
+
 ```{r}
 p4.3.3<-tb_43m %>%
   ggplot(aes(x=samplemonth, y=prop, colour=study)) +
@@ -1453,4 +1464,3 @@ p4.3.3<-tb_43m %>%
 
 p4.3.3
 ```
-

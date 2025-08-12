@@ -105,10 +105,10 @@ save(CBSs, file = "../1_data/private/CBSs.RData")
 save(CBSs_AB, file = "../1_data/private/CBSs_AB.RData")
 ```
 
-
 **Notes:** After increasing the COI from 0.8 to 178.81, 6732 of 108,514 (6.20%) samples were re-categorized as negative. The gap is smaller than what we observed in APL data, which has gaps of around 10%.
 
-#### 2.2 Roche-S --> Abbott-S transformation
+#### 2.2 Roche-S --\> Abbott-S transformation
+
 This part is skipped and not mentioned in the manuscript.
 
 #### 2.2.1 Apply Transformation
@@ -211,7 +211,6 @@ tb_melt_t4<-reshape2::melt(select(tb_ros, samplemonth, prop.ros2, prop.abbst2, s
                         variable.name = "COI",
                         value.name = "prop")
 ```
-
 
 ## 3. Making the Plot
 
@@ -550,7 +549,6 @@ p09v1 +
             colour="navy", angle=90)
 ```
 
-
 ## 4.2 The vaccination rate among APL
 
 The APL data Carmen shared with us has vaccination info, the 2024 Jan ver of it even has the vax brand. While the CBS data we have no vax info. However, a paper written by Sheila has the vax% of those in CBS data, which we can use for comparison on vax%.
@@ -706,9 +704,11 @@ p12<-dta.vax %>%
 #  scale_linetype_manual("", values=c(3,3,1,1), labels = p09.lab) 
 p12
 ```
+
 #### 4.2.4 Apply (S+ N-)/N- for vax% estimation
 
 First we calculate (S+ N-)/N- among CBS samples
+
 ```{r}
 table(CBSs_AB$pos_roche, CBSs_AB$pos_roche_s, useNA = 'ifany')
 # good data quality, only two NAs in roche_n and roche_s
@@ -723,6 +723,7 @@ table(CBSs_AB$vax_est)
 ```
 
 Then we calculate the vax% using S(+) and (S+ & N-)/(N-)
+
 ```{r}
 tbCBS_vax_est<-CBSs_AB %>%
   group_by(samplemonth) %>%
@@ -743,6 +744,7 @@ dta.vax<-rbind.data.frame(dta.vax, d05)
 ```
 
 #### Now redo the plot
+
 ```{r}
 # Add study and adjustment
 dta.vax$study[dta.vax$data %in% c("AB_general")]<-"AB_general"
@@ -769,14 +771,18 @@ p12<-dta.vax %>%
   theme(legend.position = c(0.8,0.25))
 p12
 ```
+
 #### Print p12
+
 ```{r}
 png(file="../4_output/figs/Fig.S2 Vax.png", 
     width=2400, height=1440, res=300)
 p12
 dev.off()
 ```
+
 #### 4.2.5 Figure S2 Panel B using transformed data
+
 ```{r}
 # APL S+/N- N is transformed (Abbott-->Roche)
 
@@ -811,7 +817,6 @@ d06$data<-rep("S_pos_N_Neg (Anti-N Transformed)", length(d06$samplemonth))
 
 #dta.vax<-rbind.data.frame(dta.vax, d05)
 ```
-
 
 ```{r}
 # CBS S+/N- N is transformed (Roche-->Abbott)
@@ -859,6 +864,7 @@ p13
 ```
 
 ##### Print p12 and p13 together
+
 ```{r}
 p1213<-plot_grid(p12 + xlab ("Time of Sample Collection") +
                  coord_cartesian(xlim=as.yearmon(c("Oct 2020", "Feb 2023")))+
@@ -875,13 +881,14 @@ png(file="../4_output/figs/Fig.S2 Vax.png",
 p1213
 dev.off()
 ```
+
 ##### Print p12 and p13 in pdf formats, as requested by AJE
+
 ```{r}
 ggsave(file="../4_output/figs/Fig.S2 Vax.pdf", 
        width=2400, height=1200, dpi=300, units = "px", 
        plot = p1213)
 ```
-
 
 ## 4.3 Iris's Imputation on Vax history
 
@@ -992,10 +999,10 @@ p13v1<-tb_rosv1_melt %>%
 p13v1
 ```
 
-
 ## 4.4 The vaccination policy and those "1-Doser"
 
 #### 4.4.1 add prop (1-dose only)
+
 ```{r}
 # number of personals in each month
 tb_abbsvall<-APLs %>%
@@ -1013,6 +1020,7 @@ tb_abbsv1$prop.d1<-tb_abbsv1$n/tb_abbsv1$n.all
 ```
 
 #### 4.4.2 Making the plot:
+
 ```{r}
 p09v1a<-tb_abbsv1 %>%
   ggplot(aes(x=samplemonth)) +
@@ -1032,7 +1040,8 @@ p09v1a<-tb_abbsv1 %>%
 p09v1a
 ```
 
-#### 4.4.3 Check the time gap btw 1st dose and 2nd dose. 
+#### 4.4.3 Check the time gap btw 1st dose and 2nd dose.
+
 ```{r}
 APL_vax<-RFD4682_v2_vaxe %>%
   select(ULI, ULI_IDe, DOSE_COUNT, IMMUNIZATION_DATE) %>%
@@ -1050,11 +1059,13 @@ hist(as.numeric(APL_vax$time_gap), breaks=25)
 
 summary(as.numeric(APL_vax$time_gap))
 ```
-##  4.5 Adding the proportion of each stratum
+
+## 4.5 Adding the proportion of each stratum
 
 ### Make the plot for three strata
 
 #### The unvaccinated stratum
+
 ```{r}
 # add proportion of the stratum into the data table
 tb_abbsv0<-merge(tb_abbsv0, select(tb_abbsv1, samplemonth, n.all),
@@ -1090,6 +1101,7 @@ p09v0
 ```
 
 #### The 1-dose only stratum
+
 ```{r}
 tb_abbsv1_melt<-reshape2::melt(select(tb_abbsv1, -c(2:4,7)), 
                         id.vars = c("samplemonth"),
@@ -1114,6 +1126,7 @@ p09v1
 ```
 
 #### The 2-dose+ stratum
+
 ```{r}
 tb_abbsv2<-tb_abbsv2[-1,]
 
@@ -1151,11 +1164,13 @@ p09v2
 ```
 
 ### merge all four into one figue panel
+
 ```{r}
 rm(p09v0a, p09v1a, p09v2a)
 ```
 
 #### Figure panel
+
 ```{r}
 # use cowplot package
 p09.upper<-cowplot::plot_grid(p09c + ylab("Proportion") + xlab ("") +
@@ -1180,9 +1195,11 @@ ggsave(file="../4_output/figs/Fig.3 Immunity.pdf",
         width=2550, height=2000, 
         dpi=300, units ="px")
 ```
-## 5. Additional analysis for manuscript 
 
-####  5.1 Some desc analysis
+## 5. Additional analysis for manuscript
+
+#### 5.1 Some desc analysis
+
 ```{r}
 # median age in CBS Alberta and APL
 summary(CBSs_AB$age) 
@@ -1215,6 +1232,7 @@ prop.table(table(APLs$gender))
 ```
 
 Among samples from our auxiliary datasets tested with both Abbott and Roche Anti-N assays, the COI was lower with Abbott than with Roche in X% of samples
+
 ```{r}
 # This involves directly comparison btw Roche anti-N and Abbott-anti-N
 
@@ -1236,7 +1254,9 @@ tb_melt_2 %>%
 ```
 
 #### 5.2 PCR-verified test positivity:
+
 We did this analysis as suggested by the reviewer-1
+
 ```{r}
 # How many test results are previously PCR-verified?
 
@@ -1275,6 +1295,7 @@ RFD4682_ev2 %>%
   filter(NAAT_STATUS == "Positive") %>%
   count(`RBD-IgGII_INTERP`)
 ```
+
 ```{r}
 # Stratified analysis
 RFD4682_ev2$DAYS_SINCE_NAAT<-as.numeric(RFD4682_ev2$DAYS_SINCE_NAAT)
@@ -1299,13 +1320,10 @@ RFD4682_ev2 %>%
   group_by(NAAT_month_cat) %>%
   count(`N-IgG_INTERP`)
 ```
+
 #### 5.3 Modify the legends and y-axis labels of figure 1
+
 ```{r}
 # Check the codes in qmd script 2.3
 # use key words "Fig.1" "Fig.2" to search
 ```
-
-
-
-
-
